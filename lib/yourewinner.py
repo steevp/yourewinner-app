@@ -56,38 +56,51 @@ class Forum:
         pass
 
     def get_topic(self, topic, message=None, page=None):
+        
+        if page:
+            topic = topic + "." + str((page - 1) * 50)
+        elif message:
+            topic = topic + "." + message
+
         request = self.session.get(self.url + "?topic=" + topic + ";topicseen")
         soup = BeautifulSoup(request.text)
         
-        posts = soup.find(id="forumposts")
-        contenthead = posts.find_all(class_="contenthead")
-        content = posts.find_all(id=re.compile(r'^msg_\d+$'))
-        posterinfo = posts.find_all(class_="posterinfo")
+        title = soup.title.string.split(" - ")[1:]
+        forumposts = soup.find(id="forumposts")
+        contenthead = forumposts.find_all(class_="contenthead")
+        content = forumposts.find_all(id=re.compile(r'^msg_\d+$'))
+        posterinfo = forumposts.find_all(class_="posterinfo")
         
         topic = {
-            "title": "",
+            "title": title,
             "id": topic,
             "posts": [],
             "page": page
         }
 
-        for ch, c in zip(contenthead, content):
+        for ch, pi, c in zip(contenthead, posterinfo, content):
             post = {}
 
             if ch.a.img is None:
                 post["image_username"] = None
                 post["username"] = ch.a.string
             else:
-                post["image_username"] = self.url + ch.a.img.get("src")[1:]
+                post["image_username"] = self.url + ch.a.img.get("src")[2:]
                 post["username"] = ch.a.img.get("alt")
             
+            avatar = pi.find("img", class_="avatar")
+            if avatar:
+                post["avatar"] = avatar.get("src")
+            else:
+                post["avatar"] = None
+
             post["content"] = " ".join(c.strings)
 
             topic["posts"].append(post)
 
         return topic
 
-    def get_board(self, board, page=None):
+    def get_board(self, board, page=None, children=False):
         pass
 
     def get_board_index(self):
