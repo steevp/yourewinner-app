@@ -58,7 +58,11 @@ class Forum:
     def get_topic(self, topic, message=None, page=None):
         
         if page:
-            topic = topic + "." + str((page - 1) * 50)
+            if self.logged_in:
+                topic = topic + "." + str((page - 1) * 50)
+            else:
+                # Smaller page size for guests
+                topic = topic + "." + str((page - 1) * 15)
         elif message:
             topic = topic + "." + message
 

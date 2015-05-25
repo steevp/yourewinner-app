@@ -14,10 +14,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import requests
 import re
-
-from bs4 import BeautifulSoup
 
 from lib.yourewinner import Forum
 
@@ -67,7 +64,7 @@ Builder.load_string("""
         GridLayout:
             id: gl
             cols: 1
-            spacing: 2
+            spacing: 1
             size_hint_y: None
             height: self.minimum_height
 
@@ -85,15 +82,18 @@ Builder.load_string("""
             background_normal: "catbg.jpg"
 
 <PostContent>
+    pc: pc
     direction: "right"
     size_hint_y: None
-    height: label1.height + image1.height + 20
+    #height: label1.height + image1.height + 20
+    height: 300
     Button:
+        id: pc
         size_hint_y: None
         height: root.height
         background_normal: "contentbg.jpg"
         AsyncImage:
-            id: image1
+            id: image_username
             source: root.image_username
             allow_stretch: True
             keep_ratio: False
@@ -101,13 +101,22 @@ Builder.load_string("""
             height: 30 / 2
             x: self.parent.x
             y: self.parent.y + self.parent.height - self.height
+        AsyncImage:
+            id: avatar
+            source: root.avatar
+            allow_stretch: True
+            keep_ratio: False
+            width: 50
+            height: 50
+            x: self.parent.x
+            y: self.parent.y + self.parent.height - self.height - image_username.height
         Label:
             id: label1
             text: root.post_content
             size: self.texture_size
-            text_size: self.parent.width - 10, None
-            x: self.parent.x
-            y: self.parent.y + self.parent.height - self.height - 20
+            text_size: self.parent.width - avatar.width, None
+            x: self.parent.x + avatar.width
+            y: self.parent.y + self.parent.height - self.height - image_username.height
     BoxLayout:
         orientation: "horizontal"
         height: root.height
@@ -123,49 +132,30 @@ class RootWidget(BoxLayout):
         threading.Thread(target=self.get_latest).start()
     
     def get_latest(self, *args):
-
-        print "Getting latest"
-
-        url = "http://www.yourewinner.com/index.php?topic=16399.msg239763;topicseen"
-        #url = "http://www.yourewinner.com/index.php?topic=16522.msg239831;topicseen"
-
-        data = requests.get(url).text
-        soup = BeautifulSoup(data)
-
-        posts = soup.find(id="forumposts")
-        contenthead = posts.find_all(class_="contenthead")
-        content = posts.find_all(id=re.compile("^msg_[0-9]+$"))
-        posterinfo = posts.find_all(class_="posterinfo")
-
-        for ch, c in zip(contenthead, content): 
-            if ch.a.img is None:
-                image_username = ch.a.string
-            else:
-                image_username = "http://yourewinner.com" + ch.a.img["src"][1:]
-            post_content = "\n".join(c.strings)
-            self.add_post(image_username, post_content)
+        topic = forum.get_topic("16399", page=1)
+        self.add_post(topic)
 
     @mainthread
-    def add_post(self, image_username, post_content):
-        pc = PostContent()
-        pc.change_content(image_username, post_content)
-        self.gl.add_widget(pc)
+    def add_post(self, topic):
+        for p in topic.get("posts"):
+            pc = PostContent()
+            pc.image_username = p.get("image_username")
+            pc.post_content = p.get("content")
+            pc.avatar = p.get("avatar")
+            self.gl.add_widget(pc)
 
 class PostContent(Carousel):
     image_username = StringProperty()
     post_content = StringProperty()
-
-    def change_content(self, i, p):
-        self.image_username = i
-        self.post_content = p
+    avatar = StringProperty()
 
 class YoureWinner(App):
     def __init__(self, **kwargs):
         super(YoureWinner, self).__init__(**kwargs)
-        self.forum = Forum()
 
     def build(self):
         return RootWidget()
 
 if __name__ == "__main__":
+    forum = Forum()
     YoureWinner().run()
