@@ -24,7 +24,12 @@ class Forum:
         self.logged_in = False
         self.session_id = None
         self.session_var = None
+
         self.session = requests.Session()
+        self.session.headers.update({
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101 Firefox/38.0"
+        })
+
 
     def login(self, username, password):
 
@@ -132,5 +137,32 @@ class Forum:
 
         return boards
     
-    def reply(self, topic, message):
-        pass
+    def reply(self, board, topic, message):
+
+        if not self.logged_in:
+            print "You must be logged in to do that!"
+            return False
+
+        request = self.session.get(self.url + "index.php?action=post;topic=" + topic + ".0;wap2")
+
+        soup = BeautifulSoup(request.text)
+        subject = soup.find("input", attrs={"name": "subject"})
+        # Random number used to check for double-posting
+        seqnum = soup.find("input", attrs={"name": "seqnum", "type": "hidden"})
+
+        payload = {
+            "subject": subject.get("value"),
+            "message": message,
+            "icon": "wireless",
+            "goback": "1",
+            "seqnum": seqnum.get("value"),
+            self.session_var: self.session_id,
+            "topic": topic,
+            "notify": "0"
+        }
+
+        self.session.post(self.url + "index.php?action=post2;start=0;board=" + board + ".0;wap2", data=payload)
+
+        # I'm sure it went fine
+        return True
+
