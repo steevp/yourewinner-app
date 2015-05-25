@@ -55,7 +55,42 @@ class Forum:
         return self.logged_in
 
     def get_recent(self, page=None):
-        pass
+
+        if page:
+            start = str((page - 1) * 10)
+        else:
+            start = "0"
+
+        request = self.session.get(self.url + "index.php?action=recent;start=" + start)
+        soup = BeautifulSoup(request.text)
+        check_board_id = re.compile(r'board\=(\d+)')
+        check_topic = re.compile(r'topic\=(\d+)\.(msg\d+)')
+
+        contenthead = soup.find_all("div", class_="contenthead")
+        content = soup.find_all("div", class_="content")
+
+        recent = []
+
+        for ch, c in zip(contenthead, content):
+            post = {}
+            post["username"] = ch.a.string
+
+            for a in c.find("div", class_="topic_details").find_all("a"):
+                href = a.get("href")
+                board = check_board_id.search(href)
+                topic = check_topic.search(href)
+                if board:
+                    post["board"] = check_board_id.search(href).group(1)
+                    post["board_name"] = a.string
+                elif topic:
+                    post["topic"] = topic.group(1)
+                    post["msg"] = topic.group(2)
+                    post["subject"] = a.string
+
+            post["content"] = " ".join(c.find("div", class_="list_posts").strings)
+            recent.append(post)
+
+        return recent
 
     def get_unread(self, page=None):
         pass
