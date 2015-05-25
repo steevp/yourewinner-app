@@ -64,7 +64,7 @@ class Forum:
         request = self.session.get(self.url + "index.php?action=recent;start=" + start)
         soup = BeautifulSoup(request.text)
         check_board_id = re.compile(r'board\=(\d+)')
-        check_topic = re.compile(r'topic\=(\d+)\.(msg\d+)')
+        check_topic = re.compile(r'topic\=(\d+)\.msg(\d+)')
 
         contenthead = soup.find_all("div", class_="contenthead")
         content = soup.find_all("div", class_="content")
@@ -200,4 +200,15 @@ class Forum:
 
         # I'm sure it went fine
         return True
+    
+    def rate_post(self, post, rating):
+
+        if not self.logged_in:
+            print "You must be logged in to do that!"
+            return False
+
+        request = self.session.get(self.url + "index.php?action=rateTopic;sesc=" + self.session_id + ";rateId=" + rating + ";postId=" + post + ";xml")
+        soup = BeautifulSoup(request.text)
+        ratecount = soup.find("ratecount").string
+        return ratecount
 
