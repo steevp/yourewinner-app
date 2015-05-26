@@ -22,6 +22,11 @@ from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.carousel import Carousel
+from kivy.uix.image import AsyncImage
+from kivy.uix.label import Label
+from kivy.uix.button import Button
+from kivy.adapters.listadapter import ListAdapter
+from kivy.uix.listview import ListView, SelectableView, ListItemButton
 from kivy.properties import StringProperty
 from kivy.clock import mainthread
 
@@ -29,7 +34,13 @@ import threading
 
 Builder.load_string("""
 <RootWidget>:
-    gl: gl
+    canvas.before:
+        Color:
+            rgba: 0.129, 0.11, 0.271, 1
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    forum_posts: forum_posts
     orientation: "vertical"
     ActionBar:
         pos_hint: {'top':1}
@@ -37,8 +48,7 @@ Builder.load_string("""
             use_separator: True
             background_image: "catbg.jpg"
             ActionPrevious:
-                title: 'Action Bar'
-                with_previous: False
+                title: 'Social/Off-Topic'
             ActionOverflow:
             ActionButton:
                 text: 'Btn0'
@@ -60,13 +70,9 @@ Builder.load_string("""
                 ActionButton:
                     text: 'Btn7'
 
-    ScrollView:
-        GridLayout:
-            id: gl
-            cols: 1
-            spacing: 1
-            size_hint_y: None
-            height: self.minimum_height
+    BoxLayout:
+        id: forum_posts
+        orientation: "vertical"
 
     BoxLayout:
         orientation: "horizontal"
@@ -81,73 +87,86 @@ Builder.load_string("""
             width: self.texture_size[0] + 15
             background_normal: "catbg.jpg"
 
-<PostContent>
-    pc: pc
-    direction: "right"
+<BoardIndex>:
+    orientation: "vertical"
+
+[PostContent@ListItemButton]
+    background_color: 0.129, 0.11, 0.271, 1
+    deselected_color: 0.129, 0.11, 0.271, 1
+    selected_color: 0.624, 0.365, 0.094, 1
+    background_normal: ""
+    background_down: ""
     size_hint_y: None
-    #height: label1.height + image1.height + 20
-    height: 300
-    Button:
-        id: pc
-        size_hint_y: None
-        height: root.height
-        background_normal: "contentbg.jpg"
-        AsyncImage:
-            id: image_username
-            source: root.image_username
-            allow_stretch: True
-            keep_ratio: False
-            width: 200 / 2
-            height: 30 / 2
-            x: self.parent.x
-            y: self.parent.y + self.parent.height - self.height
-        AsyncImage:
-            id: avatar
-            source: root.avatar
-            allow_stretch: True
-            keep_ratio: False
-            width: 50
-            height: 50
-            x: self.parent.x
-            y: self.parent.y + self.parent.height - self.height - image_username.height
-        Label:
-            id: label1
-            text: root.post_content
-            size: self.texture_size
-            text_size: self.parent.width - avatar.width, None
-            x: self.parent.x + avatar.width
-            y: self.parent.y + self.parent.height - self.height - image_username.height
-    BoxLayout:
-        orientation: "horizontal"
-        height: root.height
-        Button:
-            text: "test"
-            background_normal: "contentbg.jpg"
+    height: image_username.height+avatar.height+10 if image_username.height+avatar.height > image_username.height+label1.height else image_username.height+label1.height+10
+    AsyncImage:
+        id: image_username
+        source: ctx.image_username
+        allow_stretch: True
+        keep_ratio: False
+        width: 100
+        height: 15
+        x: self.parent.x
+        y: self.parent.y + self.parent.height - self.height
+    AsyncImage:
+        id: avatar
+        source: ctx.avatar
+        allow_stretch: True
+        keep_ratio: False
+        width: 50
+        height: 50
+        x: self.parent.x
+        y: self.parent.y + self.parent.height - self.height - image_username.height
+    Label:
+        id: label1
+        text: ctx.post_content
+        size: self.texture_size
+        text_size: self.parent.width - avatar.width - 10, None
+        x: self.parent.x + avatar.width + 5
+        y: self.parent.y + self.parent.height - self.height - image_username.height - 5
 """)
 
 class RootWidget(BoxLayout):
 
     def __init__(self, **kwargs):
         super(RootWidget, self).__init__(**kwargs)
-        threading.Thread(target=self.get_latest).start()
+        threading.Thread(target=self.get_recent).start()
     
-    def get_latest(self, *args):
-        topic = forum.get_topic("16399", page=1)
-        self.add_post(topic)
+    def get_recent(self, page=None):
+        recent = forum.get_topic("16503", page=page)
+        self.add_posts(recent)
 
     @mainthread
-    def add_post(self, topic):
-        for p in topic.get("posts"):
-            pc = PostContent()
-            pc.image_username = p.get("image_username")
-            pc.post_content = p.get("content")
-            pc.avatar = p.get("avatar")
-            self.gl.add_widget(pc)
+    def add_posts(self, posts):
+        data = posts["posts"]
+        args_converter = lambda row_index, ctx: {
+            "image_username": ctx["image_username"],
+            "avatar": ctx["avatar"],
+            "post_content": ctx["content"]
+        }
+        list_adapter = ListAdapter(data=data, args_converter=args_converter, template="PostContent")
+        list_view = ListView(adapter=list_adapter)
+        self.forum_posts.add_widget(list_view)
 
-class PostContent(Carousel):
-    image_username = StringProperty()
-    post_content = StringProperty()
-    avatar = StringProperty()
+class BoardIndex(BoxLayout):
+    
+    def __init__(self, **kwargs):
+        super(BoardIndex, self).__init__(**kwargs)
+        threading.Thread(target=self.get_board_index).start()
+    
+    def get_board_index(self):
+        board_index = forum.get_board_index()
+        self.add_boards(board_index)
+
+    @mainthread
+    def add_boards(self, boards):
+        data = []
+        for k in boards.iterkeys():
+            data += boards[k]
+
+        args_converter = lambda row_index, rec: {"text": rec["name"], "size_hint_y": None, "height": 40}
+        list_adapter = ListAdapter(data=data, args_converter=args_converter, cls=ListItemButton)
+        list_view = ListView(adapter=list_adapter)
+        self.add_widget(list_view)
 
 class YoureWinner(App):
     def __init__(self, **kwargs):
@@ -155,6 +174,7 @@ class YoureWinner(App):
 
     def build(self):
         return RootWidget()
+        #return BoardIndex()
 
 if __name__ == "__main__":
     forum = Forum()
