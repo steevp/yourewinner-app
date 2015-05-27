@@ -29,6 +29,7 @@ from kivy.adapters.listadapter import ListAdapter
 from kivy.uix.listview import ListView, SelectableView, ListItemButton
 from kivy.properties import StringProperty
 from kivy.clock import mainthread
+from kivy.graphics.vertex_instructions import Ellipse
 
 import threading
 
@@ -91,13 +92,18 @@ Builder.load_string("""
     orientation: "vertical"
 
 [PostContent@ListItemButton]
+    canvas.after:
+        Color:
+            rgba: 0.051, 0.035, 0.141, 1
+        Line:
+            rectangle: self.x + 1, self.y + 1, self.width - 1, self.height - 1
     background_color: 0.129, 0.11, 0.271, 1
     deselected_color: 0.129, 0.11, 0.271, 1
     selected_color: 0.624, 0.365, 0.094, 1
     background_normal: ""
     background_down: ""
     size_hint_y: None
-    height: image_username.height+avatar.height+10 if image_username.height+avatar.height > image_username.height+label1.height else image_username.height+label1.height+10
+    height: image_username.height+avatar.height+10 if image_username.height+avatar.height > image_username.height+post_content.height else image_username.height+post_content.height+10
     AsyncImage:
         id: image_username
         source: ctx.image_username
@@ -107,23 +113,38 @@ Builder.load_string("""
         height: 15
         x: self.parent.x
         y: self.parent.y + self.parent.height - self.height
-    AsyncImage:
+    AsyncAvatar:
         id: avatar
         source: ctx.avatar
         allow_stretch: True
         keep_ratio: False
-        width: 50
-        height: 50
+        width: 25
+        height: 25
         x: self.parent.x
         y: self.parent.y + self.parent.height - self.height - image_username.height
     Label:
-        id: label1
+        #canvas.before:
+        #    Color:
+        #        rgba: 0.745, 0.455, 0.008, 1
+        #    Rectangle:
+        #        pos: self.pos
+        #        size: self.size
+        id: post_content
         text: ctx.post_content
         size: self.texture_size
         text_size: self.parent.width - avatar.width - 10, None
         x: self.parent.x + avatar.width + 5
         y: self.parent.y + self.parent.height - self.height - image_username.height - 5
 """)
+
+class AsyncAvatar(AsyncImage):
+    def _on_source_load(self, value):
+        image = self._coreimage.image
+        if image:
+            with self.canvas.after:
+                Ellipse(texture=image.texture, pos=self.pos, size=self.size)
+    def _on_tex_change(self, *largs):
+        pass
 
 class RootWidget(BoxLayout):
 
