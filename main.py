@@ -27,6 +27,8 @@ from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.adapters.listadapter import ListAdapter
 from kivy.uix.listview import ListView, SelectableView, ListItemButton
+from kivy.uix.accordion import Accordion, AccordionItem
+from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.properties import StringProperty
 from kivy.clock import mainthread
 from kivy.graphics.vertex_instructions import Ellipse
@@ -42,67 +44,83 @@ Builder.load_string("""
         Rectangle:
             pos: self.pos
             size: self.size
+    TopicView:
+
+<TopicView>:
     forum_posts: forum_posts
-    orientation: "vertical"
-    ActionBar:
-        pos_hint: {'top':1}
-        ActionView:
-            use_separator: True
-            background_image: "catbg.jpg"
-            ActionPrevious:
-                title: 'Social/Off-Topic'
-            ActionOverflow:
-            ActionButton:
-                text: 'Btn0'
-                icon: 'atlas://data/images/defaulttheme/audio-volume-high'
-            ActionButton:
-                text: 'Btn1'
-            ActionButton:
-                text: 'Btn2'
-            ActionButton:
-                text: 'Btn3'
-            ActionButton:
-                text: 'Btn4'
-            ActionGroup:
-                text: 'Group1'
-                ActionButton:
-                    text: 'Btn5'
-                ActionButton:
-                    text: 'Btn6'
-                ActionButton:
-                    text: 'Btn7'
-
     BoxLayout:
-        id: forum_posts
         orientation: "vertical"
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                background_image: "catbg.jpg"
+                ActionPrevious:
+                    title: 'Social/Off-Topic'
+                ActionOverflow:
+                ActionButton:
+                    text: 'Btn0'
+                    icon: 'atlas://data/images/defaulttheme/audio-volume-high'
+                ActionButton:
+                    text: 'Btn1'
+                ActionButton:
+                    text: 'Btn2'
+                ActionButton:
+                    text: 'Btn3'
+                ActionButton:
+                    text: 'Btn4'
+                ActionGroup:
+                    text: 'Group1'
+                    ActionButton:
+                        text: 'Btn5'
+                    ActionButton:
+                        text: 'Btn6'
+                    ActionButton:
+                        text: 'Btn7'
 
-    BoxLayout:
-        orientation: "horizontal"
-        size_hint_y: None
-        height: 32
-        TextInput:
-            multiline: False
-            hint_text: "Quick Reply"
-        Button:
-            text: "Post"
-            size_hint_x: None
-            width: self.texture_size[0] + 15
-            background_normal: "catbg.jpg"
+        BoxLayout:
+            id: forum_posts
+            orientation: "vertical"
+
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: 32
+            TextInput:
+                multiline: False
+                hint_text: "Quick Reply"
+            Button:
+                text: "Post"
+                size_hint_x: None
+                width: self.texture_size[0] + 15
+                background_normal: "catbg.jpg"
 
 <BoardIndex>:
-    orientation: "vertical"
+    boards: boards
+    BoxLayout:
+        id: boards
+        canvas.before:
+            Color:
+                rgba: 0.129, 0.11, 0.271, 1
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        orientation: "vertical"
 
-[PostContent@ListItemButton]
+<ListItemButton>:
     canvas.after:
         Color:
             rgba: 0.051, 0.035, 0.141, 1
         Line:
-            rectangle: self.x + 1, self.y + 1, self.width - 1, self.height - 1
+            rectangle: self.x, self.y, self.width, self.height
     background_color: 0.129, 0.11, 0.271, 1
     deselected_color: 0.129, 0.11, 0.271, 1
     selected_color: 0.624, 0.365, 0.094, 1
     background_normal: ""
     background_down: ""
+
+[PostContent@ListItemButton]:
+    my_id: ctx.my_id
     size_hint_y: None
     height: image_username.height+avatar.height+10 if image_username.height+avatar.height > image_username.height+post_content.height else image_username.height+post_content.height+10
     AsyncImage:
@@ -121,8 +139,6 @@ Builder.load_string("""
         keep_ratio: False
         width: 25
         height: 25
-        pos: self.pos
-        size: self.size
         x: self.parent.x
         y: self.parent.y + self.parent.height - self.height
     Label:
@@ -139,6 +155,9 @@ Builder.load_string("""
         x: self.parent.x + avatar.width + 5
         y: self.parent.y + self.parent.height - self.height - image_username.height - 5
 """)
+
+class PostContent(ListItemButton):
+    my_id = StringProperty()
 
 # Draws the avatars in an circle
 class CircleAvatar(AsyncImage):
@@ -160,10 +179,13 @@ class CircleAvatar(AsyncImage):
         if self.circle:
             self.circle.pos = new_pos
 
-class RootWidget(BoxLayout):
+class RootWidget(ScreenManager):
+    pass
+
+class TopicView(Screen):
 
     def __init__(self, **kwargs):
-        super(RootWidget, self).__init__(**kwargs)
+        super(TopicView, self).__init__(**kwargs)
         threading.Thread(target=self.get_recent).start()
     
     def get_recent(self, page=None):
@@ -176,13 +198,18 @@ class RootWidget(BoxLayout):
         args_converter = lambda row_index, ctx: {
             "image_username": ctx["image_username"],
             "avatar": ctx["avatar"],
-            "post_content": ctx["content"]
+            "post_content": ctx["content"],
+            "my_id": posts["id"]
         }
         list_adapter = ListAdapter(data=data, args_converter=args_converter, template="PostContent")
+        list_adapter.bind(on_selection_change=self.callback)
         list_view = ListView(adapter=list_adapter)
         self.forum_posts.add_widget(list_view)
 
-class BoardIndex(BoxLayout):
+    def callback(self, adapter):
+        print adapter.selection[0].my_id
+
+class BoardIndex(Screen):
     
     def __init__(self, **kwargs):
         super(BoardIndex, self).__init__(**kwargs)
@@ -194,14 +221,22 @@ class BoardIndex(BoxLayout):
 
     @mainthread
     def add_boards(self, boards):
-        data = []
-        for k in boards.iterkeys():
-            data += boards[k]
+        ac = Accordion(orientation="vertical")
+        for cat in boards.iterkeys():
+            item = AccordionItem(title=cat)
+            data = boards[cat]
+            args_converter = lambda row_index, rec: {"text": rec["name"], "board_id": rec["id"], "size_hint_y": None, "height": 40}
+            list_adapter = ListAdapter(data=data, args_converter=args_converter, cls=ListItemButton)
+            list_adapter.bind(on_selection_change=self.open_board)
+            list_view = ListView(adapter=list_adapter)
+            item.add_widget(list_view)
+            ac.add_widget(item)
+        self.boards.add_widget(ac)
 
-        args_converter = lambda row_index, rec: {"text": rec["name"], "size_hint_y": None, "height": 40}
-        list_adapter = ListAdapter(data=data, args_converter=args_converter, cls=ListItemButton)
-        list_view = ListView(adapter=list_adapter)
-        self.add_widget(list_view)
+    def open_board(self, adapter):
+        print adapter.selection[0]
+        #self.manager.add_widget(TopicView(name="topicview"))
+        #self.manager.current = "topicview"
 
 class YoureWinner(App):
     def __init__(self, **kwargs):
@@ -209,7 +244,6 @@ class YoureWinner(App):
 
     def build(self):
         return RootWidget()
-        #return BoardIndex()
 
 if __name__ == "__main__":
     forum = Forum()
