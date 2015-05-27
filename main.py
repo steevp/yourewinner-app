@@ -30,6 +30,7 @@ from kivy.uix.listview import ListView, SelectableView, ListItemButton
 from kivy.properties import StringProperty
 from kivy.clock import mainthread
 from kivy.graphics.vertex_instructions import Ellipse
+from kivy.graphics.context_instructions import Color
 
 import threading
 
@@ -111,17 +112,19 @@ Builder.load_string("""
         keep_ratio: False
         width: 100
         height: 15
-        x: self.parent.x
+        x: self.parent.x + avatar.width + 5
         y: self.parent.y + self.parent.height - self.height
-    AsyncAvatar:
+    CircleAvatar:
         id: avatar
         source: ctx.avatar
         allow_stretch: True
         keep_ratio: False
         width: 25
         height: 25
+        pos: self.pos
+        size: self.size
         x: self.parent.x
-        y: self.parent.y + self.parent.height - self.height - image_username.height
+        y: self.parent.y + self.parent.height - self.height
     Label:
         #canvas.before:
         #    Color:
@@ -137,14 +140,25 @@ Builder.load_string("""
         y: self.parent.y + self.parent.height - self.height - image_username.height - 5
 """)
 
-class AsyncAvatar(AsyncImage):
+# Draws the avatars in an circle
+class CircleAvatar(AsyncImage):
+    def __init__(self, **kwargs):
+        self.circle = None
+        super(CircleAvatar, self).__init__(**kwargs)
+
     def _on_source_load(self, value):
         image = self._coreimage.image
         if image:
             with self.canvas.after:
-                Ellipse(texture=image.texture, pos=self.pos, size=self.size)
+                self.circle = Ellipse(texture=image.texture, pos=self.pos, size=self.size)
+    
     def _on_tex_change(self, *largs):
-        pass
+        if self._coreimage and self.circle:
+            self.circle.texture = self._coreimage.texture
+
+    def on_pos(self, obj, new_pos):
+        if self.circle:
+            self.circle.pos = new_pos
 
 class RootWidget(BoxLayout):
 
