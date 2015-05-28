@@ -43,9 +43,15 @@ Builder.load_string("""
         Rectangle:
             pos: self.pos
             size: self.size
+    boardindex: boardindex
+    boardview: boardview
+    topicview: topicview
     BoardIndex:
         id: boardindex
         name: "boardindex"
+    BoardView:
+        id: boardview
+        name: "boardview"
     TopicView:
         id: topicview
         name: "topicview"
@@ -110,6 +116,40 @@ Builder.load_string("""
                 pos: self.pos
                 size: self.size
         orientation: "vertical"
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                background_image: "catbg.jpg"
+                ActionPrevious:
+                    title: 'Social/Off-Topic'
+                ActionOverflow:
+                ActionButton:
+                    text: 'Btn0'
+                    icon: 'atlas://data/images/defaulttheme/audio-volume-high'
+                ActionButton:
+                    text: 'Btn1'
+                ActionButton:
+                    text: 'Btn2'
+                ActionButton:
+                    text: 'Btn3'
+                ActionButton:
+                    text: 'Btn4'
+                ActionGroup:
+                    text: 'Group1'
+                    ActionButton:
+                        text: 'Btn5'
+                    ActionButton:
+                        text: 'Btn6'
+                    ActionButton:
+                        text: 'Btn7'
+
+
+<BoardView>:
+    topics: topics
+    BoxLayout:
+        id: topics
+        orientation: "vertical"
 
 <ListItemButton>:
     canvas.after:
@@ -122,6 +162,8 @@ Builder.load_string("""
     selected_color: 0.624, 0.365, 0.094, 1
     background_normal: ""
     background_down: ""
+    size_hint_y: None
+    height: 40
 
 [PostContent@ListItemButton]:
     msg_id: ctx.msg_id
@@ -158,6 +200,10 @@ Builder.load_string("""
     text: ctx.text
     size_hint_y: None
     height: 40
+
+[BoardContent@ListItemButton]:
+    text: ctx.text
+    topic_id: ctx.topic_id
 """)
 
 # Draws the avatars in an circle
@@ -188,15 +234,21 @@ class RootWidget(ScreenManager):
     pass
 
 class TopicView(Screen):
+    loaded_topic = StringProperty(None)
+
     def on_pre_enter(self):
-        threading.Thread(target=self.get_recent).start()
+        if self.loaded_topic != self.manager.boardview.selected_topic:
+            threading.Thread(target=self.get_recent).start()
     
-    def get_recent(self, page=None):
-        recent = forum.get_topic("16503", page=page)
-        self.add_posts(recent)
+    def get_recent(self, page=1):
+        self.loaded_topic = topic = self.manager.boardview.selected_topic
+        if topic:
+            recent = forum.get_topic(topic, page=page)
+            self.add_posts(recent)
 
     @mainthread
     def add_posts(self, posts):
+        self.forum_posts.clear_widgets()
         data = posts["posts"]
         args_converter = lambda row_index, ctx: {
             "image_username": ctx["image_username"],
@@ -214,6 +266,8 @@ class TopicView(Screen):
             print adapter.selection[0].msg_id
 
 class BoardIndex(Screen):
+    selected_board = StringProperty(None)
+
     def on_pre_enter(self):
         threading.Thread(target=self.get_board_index).start()
     
@@ -240,7 +294,36 @@ class BoardIndex(Screen):
 
     def open_board(self, adapter):
         if adapter.selection:
-            print adapter.selection[0].board_id
+            self.selected_board = adapter.selection[0].board_id
+            self.manager.current = "boardview"
+
+class BoardView(Screen):
+    selected_topic = StringProperty(None)
+
+    def on_pre_enter(self):
+        threading.Thread(target=self.get_board).start()
+
+    def get_board(self):
+        board = self.manager.boardindex.selected_board
+        if board:
+            topics = forum.get_board(board)
+            self.add_topics(topics)
+
+    @mainthread
+    def add_topics(self, topics):
+        data = topics
+        args_converter = lambda row_index, ctx: {
+            "text": ctx["title"],
+            "topic_id": ctx["topic_id"]
+        }
+        list_adapter = ListAdapter(data=data, args_converter=args_converter, template="BoardContent")
+        list_adapter.bind(on_selection_change=self.open_topic)
+        list_view = ListView(adapter=list_adapter)
+        self.topics.add_widget(list_view)
+
+    def open_topic(self, adapter):
+        if adapter.selection:
+            self.selected_topic = adapter.selection[0].topic_id
             self.manager.current = "topicview"
 
 class YoureWinner(App):
