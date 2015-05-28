@@ -32,7 +32,6 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.properties import StringProperty
 from kivy.clock import mainthread
 from kivy.graphics.vertex_instructions import Ellipse
-from kivy.graphics.context_instructions import Color
 
 import threading
 
@@ -44,7 +43,12 @@ Builder.load_string("""
         Rectangle:
             pos: self.pos
             size: self.size
+    BoardIndex:
+        id: boardindex
+        name: "boardindex"
     TopicView:
+        id: topicview
+        name: "topicview"
 
 <TopicView>:
     forum_posts: forum_posts
@@ -120,7 +124,7 @@ Builder.load_string("""
     background_down: ""
 
 [PostContent@ListItemButton]:
-    my_id: ctx.my_id
+    msg_id: ctx.msg_id
     size_hint_y: None
     height: image_username.height+avatar.height+10 if image_username.height+avatar.height > image_username.height+post_content.height else image_username.height+post_content.height+10
     AsyncImage:
@@ -142,18 +146,18 @@ Builder.load_string("""
         x: self.parent.x
         y: self.parent.y + self.parent.height - self.height
     Label:
-        #canvas.before:
-        #    Color:
-        #        rgba: 0.745, 0.455, 0.008, 1
-        #    Rectangle:
-        #        pos: self.pos
-        #        size: self.size
         id: post_content
         text: ctx.post_content
         size: self.texture_size
         text_size: self.parent.width - avatar.width - 10, None
         x: self.parent.x + avatar.width + 5
         y: self.parent.y + self.parent.height - self.height - image_username.height - 5
+
+[BoardIndexButton@ListItemButton]:
+    board_id: ctx.board_id
+    text: ctx.text
+    size_hint_y: None
+    height: 40
 """)
 
 # Draws the avatars in an circle
@@ -176,13 +180,15 @@ class CircleAvatar(AsyncImage):
         if self.circle:
             self.circle.pos = new_pos
 
+    def on_size(self, obj, new_size):
+        if self.circle:
+            self.circle.size = new_size
+
 class RootWidget(ScreenManager):
     pass
 
 class TopicView(Screen):
-
-    def __init__(self, **kwargs):
-        super(TopicView, self).__init__(**kwargs)
+    def on_pre_enter(self):
         threading.Thread(target=self.get_recent).start()
     
     def get_recent(self, page=None):
@@ -196,7 +202,7 @@ class TopicView(Screen):
             "image_username": ctx["image_username"],
             "avatar": ctx["avatar"],
             "post_content": ctx["content"],
-            "my_id": posts["id"]
+            "msg_id": ctx["msg_id"]
         }
         list_adapter = ListAdapter(data=data, args_converter=args_converter, template="PostContent")
         list_adapter.bind(on_selection_change=self.callback)
@@ -204,12 +210,11 @@ class TopicView(Screen):
         self.forum_posts.add_widget(list_view)
 
     def callback(self, adapter):
-        print adapter.selection[0].my_id
+        if adapter.selection:
+            print adapter.selection[0].msg_id
 
 class BoardIndex(Screen):
-    
-    def __init__(self, **kwargs):
-        super(BoardIndex, self).__init__(**kwargs)
+    def on_pre_enter(self):
         threading.Thread(target=self.get_board_index).start()
     
     def get_board_index(self):
@@ -222,8 +227,11 @@ class BoardIndex(Screen):
         for cat in boards.iterkeys():
             item = AccordionItem(title=cat)
             data = boards[cat]
-            args_converter = lambda row_index, rec: {"text": rec["name"], "board_id": rec["id"], "size_hint_y": None, "height": 40}
-            list_adapter = ListAdapter(data=data, args_converter=args_converter, cls=ListItemButton)
+            args_converter = lambda row_index, ctx: {
+                "text": ctx["name"],
+                "board_id": ctx["id"]
+            }
+            list_adapter = ListAdapter(data=data, args_converter=args_converter, template="BoardIndexButton")
             list_adapter.bind(on_selection_change=self.open_board)
             list_view = ListView(adapter=list_adapter)
             item.add_widget(list_view)
@@ -231,14 +239,11 @@ class BoardIndex(Screen):
         self.boards.add_widget(ac)
 
     def open_board(self, adapter):
-        print adapter.selection[0]
-        #self.manager.add_widget(TopicView(name="topicview"))
-        #self.manager.current = "topicview"
+        if adapter.selection:
+            print adapter.selection[0].board_id
+            self.manager.current = "topicview"
 
 class YoureWinner(App):
-    def __init__(self, **kwargs):
-        super(YoureWinner, self).__init__(**kwargs)
-
     def build(self):
         return RootWidget()
 

@@ -54,12 +54,9 @@ class Forum:
         
         return self.logged_in
 
-    def get_recent(self, page=None):
+    def get_recent(self, page=1):
 
-        if page:
-            start = str((page - 1) * 10)
-        else:
-            start = "0"
+        start = str((page - 1) * 10)
 
         request = self.session.get(self.url + "index.php?action=recent;start=" + start)
         soup = BeautifulSoup(request.text)
@@ -108,10 +105,12 @@ class Forum:
 
         request = self.session.get(self.url + "?topic=" + topic + ";topicseen")
         soup = BeautifulSoup(request.text)
+        check_msg_id = re.compile(r'msg(\d+)')
         
         title = soup.title.string.split(" - ")[1:]
         forumposts = soup.find(id="forumposts")
         contenthead = forumposts.find_all(class_="contenthead")
+        subject = forumposts.find_all(id=re.compile(r'^subject_\d+$'))
         content = forumposts.find_all(id=re.compile(r'^msg_\d+$'))
         posterinfo = forumposts.find_all(class_="posterinfo")
         
@@ -122,7 +121,7 @@ class Forum:
             "page": page
         }
 
-        for ch, pi, c in zip(contenthead, posterinfo, content):
+        for ch, pi, s, c in zip(contenthead, posterinfo, subject, content):
             post = {}
 
             if ch.a.img is None:
@@ -137,6 +136,11 @@ class Forum:
                 post["avatar"] = avatar.get("src")
             else:
                 post["avatar"] = None
+            
+            href = s.a.get("href")
+            msg_id = check_msg_id.search(href)
+            if msg_id:
+                post["msg_id"] = msg_id.group(1)
 
             post["content"] = " ".join(c.strings)
 
@@ -162,6 +166,10 @@ class Forum:
             thread_stats = tr.find("td", class_="threadstats")
             post["icon"] = thread_icon.get("src")
             for a in thread_info.find_all("a"):
+                class_ = a.get("class")
+                if class_:
+                    if "navPages" in class_:
+                        continue
                 href = a.get("href")
                 topic = check_topic.search(href)
                 profile = check_profile.search(href)
