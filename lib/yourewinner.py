@@ -144,8 +144,43 @@ class Forum:
 
         return topic
 
-    def get_board(self, board, page=None, children=False):
-        pass
+    def get_board(self, board, page=1, children=False):
+        board = "{0}.{1}".format(board, str((page - 1) * 50))
+        request = self.session.get(self.url + "index.php?board=" + board)
+        soup = BeautifulSoup(request.text)
+        check_topic = re.compile(r'topic\=(\d+)')
+        check_profile = re.compile(r'action\=profile\;u\=(\d+)')
+        check_replies = re.compile(r'(\d+) Replies')
+        check_views = re.compile(r'(\d+) Views')
+        posts = []
+
+        thread_row = soup.find_all("tr", class_="threadrow")
+        for tr in thread_row:
+            post = {}
+            thread_icon = tr.find("td", class_="threadicon2").img
+            thread_info = tr.find("td", class_="threadinfo")
+            thread_stats = tr.find("td", class_="threadstats")
+            post["icon"] = thread_icon.get("src")
+            for a in thread_info.find_all("a"):
+                href = a.get("href")
+                topic = check_topic.search(href)
+                profile = check_profile.search(href)
+                if topic:
+                    post["topic_id"] = topic.group(1)
+                    post["title"] = a.string
+                elif profile:
+                    post["username"] = a.string
+                    post["user_id"] = profile.group(1)
+            for ts in thread_stats.strings:
+                replies = check_replies.search(ts)
+                views = check_views.search(ts)
+                if replies:
+                    post["replies"] = check_replies.search(ts).group(1)
+                elif views:
+                    post["views"] = check_views.search(ts).group(1)
+            posts.append(post)
+
+        return posts
 
     def get_board_index(self):
         request = self.session.get(self.url + "index.php?wap2")

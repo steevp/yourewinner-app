@@ -156,9 +156,6 @@ Builder.load_string("""
         y: self.parent.y + self.parent.height - self.height - image_username.height - 5
 """)
 
-class PostContent(ListItemButton):
-    my_id = StringProperty()
-
 # Draws the avatars in an circle
 class CircleAvatar(AsyncImage):
     def __init__(self, **kwargs):
