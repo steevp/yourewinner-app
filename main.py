@@ -67,6 +67,7 @@ Builder.load_string("""
                 background_image: "catbg.jpg"
                 ActionPrevious:
                     title: 'Social/Off-Topic'
+                    on_release: app.root.current = "boardindex"
                 ActionOverflow:
                 ActionButton:
                     text: 'Btn0'
@@ -116,34 +117,6 @@ Builder.load_string("""
                 pos: self.pos
                 size: self.size
         orientation: "vertical"
-        ActionBar:
-            pos_hint: {'top':1}
-            ActionView:
-                use_separator: True
-                background_image: "catbg.jpg"
-                ActionPrevious:
-                    title: 'Social/Off-Topic'
-                ActionOverflow:
-                ActionButton:
-                    text: 'Btn0'
-                    icon: 'atlas://data/images/defaulttheme/audio-volume-high'
-                ActionButton:
-                    text: 'Btn1'
-                ActionButton:
-                    text: 'Btn2'
-                ActionButton:
-                    text: 'Btn3'
-                ActionButton:
-                    text: 'Btn4'
-                ActionGroup:
-                    text: 'Group1'
-                    ActionButton:
-                        text: 'Btn5'
-                    ActionButton:
-                        text: 'Btn6'
-                    ActionButton:
-                        text: 'Btn7'
-
 
 <BoardView>:
     topics: topics
@@ -238,6 +211,7 @@ class TopicView(Screen):
 
     def on_pre_enter(self):
         if self.loaded_topic != self.manager.boardview.selected_topic:
+            self.forum_posts.clear_widgets()
             threading.Thread(target=self.get_recent).start()
     
     def get_recent(self, page=1):
@@ -248,7 +222,6 @@ class TopicView(Screen):
 
     @mainthread
     def add_posts(self, posts):
-        self.forum_posts.clear_widgets()
         data = posts["posts"]
         args_converter = lambda row_index, ctx: {
             "image_username": ctx["image_username"],
@@ -269,7 +242,9 @@ class BoardIndex(Screen):
     selected_board = StringProperty(None)
 
     def on_pre_enter(self):
-        threading.Thread(target=self.get_board_index).start()
+        if not self.selected_board:
+            #self.boards.clear_widgets()
+            threading.Thread(target=self.get_board_index).start()
     
     def get_board_index(self):
         board_index = forum.get_board_index()
@@ -299,12 +274,15 @@ class BoardIndex(Screen):
 
 class BoardView(Screen):
     selected_topic = StringProperty(None)
+    loaded_board = StringProperty(None)
 
     def on_pre_enter(self):
-        threading.Thread(target=self.get_board).start()
+        if self.loaded_board != self.manager.boardindex.selected_board:
+            self.topics.clear_widgets()
+            threading.Thread(target=self.get_board).start()
 
     def get_board(self):
-        board = self.manager.boardindex.selected_board
+        self.loaded_board = board = self.manager.boardindex.selected_board
         if board:
             topics = forum.get_board(board)
             self.add_topics(topics)
