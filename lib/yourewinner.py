@@ -16,43 +16,51 @@
 
 import re
 import requests
-from bs4 import BeautifulSoup
+import xmlrpclib
+
+#from bs4 import BeautifulSoup
+from transport import RequestsTransport
 
 class Forum:
     def __init__(self, **kwargs):
         self.url = "http://yourewinner.com/"
+        self.api = xmlrpclib.ServerProxy(self.url + "mobiquo/mobiquo.php", transport=RequestsTransport())
         self.logged_in = False
         self.session_id = None
         self.session_var = None
-
-        self.session = requests.Session()
-        self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64; rv:38.0) Gecko/20100101 Firefox/38.0"
-        })
-
+        self.session = RequestsTransport.session
 
     def login(self, username, password):
+        username = xmlrpclib.Binary(username)
+        password = xmlrpclib.Binary(password)
+        request = self.api.login(username, password)
 
-        payload = {
-            "user": username,
-            "passwrd": password,
-            "cookieneverexp": "1"
-        }
-    
-        request = self.session.post(self.url + "index.php?action=login2;wap2", data=payload)
-        
-        check_login = re.search(r'action\=logout\;(\w+)\=(\w+)', request.text)
-
-        if check_login:
+        result = request.get("result")
+        if result:
             self.logged_in = True
-            self.session_var = check_login.group(1)
-            self.session_id = check_login.group(2)
-        else:
-            self.logged_in = False
-            self.session_var = None
-            self.session_id = None
-        
-        return self.logged_in
+
+        return result
+
+        #payload = {
+        #    "user": username,
+        #    "passwrd": password,
+        #    "cookieneverexp": "1"
+        #}
+    
+        #request = self.session.post(self.url + "index.php?action=login2;wap2", data=payload)
+        #
+        #check_login = re.search(r'action\=logout\;(\w+)\=(\w+)', request.text)
+
+        #if check_login:
+        #    self.logged_in = True
+        #    self.session_var = check_login.group(1)
+        #    self.session_id = check_login.group(2)
+        #else:
+        #    self.logged_in = False
+        #    self.session_var = None
+        #    self.session_id = None
+        #
+        #return self.logged_in
 
     def get_recent(self, page=1):
 
@@ -93,6 +101,9 @@ class Forum:
         pass
 
     def get_topic(self, topic, message=None, page=None):
+
+        request = self.api.get_thread(topic, 0, 9)
+        return request
         
         if page:
             if self.logged_in:
@@ -149,71 +160,77 @@ class Forum:
         return topic
 
     def get_board(self, board, page=1, children=False):
-        board = "{0}.{1}".format(board, str((page - 1) * 50))
-        request = self.session.get(self.url + "index.php?board=" + board)
-        soup = BeautifulSoup(request.text)
-        check_topic = re.compile(r'topic\=(\d+)')
-        check_profile = re.compile(r'action\=profile\;u\=(\d+)')
-        check_replies = re.compile(r'(\d+) Replies')
-        check_views = re.compile(r'(\d+) Views')
-        posts = []
+        request = self.api.get_topic(board)
+        return request.get("topics")
 
-        thread_row = soup.find_all("tr", class_="threadrow")
-        for tr in thread_row:
-            post = {}
-            thread_icon = tr.find("td", class_="threadicon2").img
-            thread_info = tr.find("td", class_="threadinfo")
-            thread_stats = tr.find("td", class_="threadstats")
-            post["icon"] = thread_icon.get("src")
-            for a in thread_info.find_all("a"):
-                class_ = a.get("class")
-                if class_:
-                    if "navPages" in class_:
-                        continue
-                href = a.get("href")
-                topic = check_topic.search(href)
-                profile = check_profile.search(href)
-                if topic:
-                    post["topic_id"] = topic.group(1)
-                    post["title"] = a.string
-                elif profile:
-                    post["username"] = a.string
-                    post["user_id"] = profile.group(1)
-            for ts in thread_stats.strings:
-                replies = check_replies.search(ts)
-                views = check_views.search(ts)
-                if replies:
-                    post["replies"] = check_replies.search(ts).group(1)
-                elif views:
-                    post["views"] = check_views.search(ts).group(1)
-            posts.append(post)
+        #board = "{0}.{1}".format(board, str((page - 1) * 50))
+        #request = self.session.get(self.url + "index.php?board=" + board)
+        #soup = BeautifulSoup(request.text)
+        #check_topic = re.compile(r'topic\=(\d+)')
+        #check_profile = re.compile(r'action\=profile\;u\=(\d+)')
+        #check_replies = re.compile(r'(\d+) Replies')
+        #check_views = re.compile(r'(\d+) Views')
+        #posts = []
 
-        return posts
+        #thread_row = soup.find_all("tr", class_="threadrow")
+        #for tr in thread_row:
+        #    post = {}
+        #    thread_icon = tr.find("td", class_="threadicon2").img
+        #    thread_info = tr.find("td", class_="threadinfo")
+        #    thread_stats = tr.find("td", class_="threadstats")
+        #    post["icon"] = thread_icon.get("src")
+        #    for a in thread_info.find_all("a"):
+        #        class_ = a.get("class")
+        #        if class_:
+        #            if "navPages" in class_:
+        #                continue
+        #        href = a.get("href")
+        #        topic = check_topic.search(href)
+        #        profile = check_profile.search(href)
+        #        if topic:
+        #            post["topic_id"] = topic.group(1)
+        #            post["title"] = a.string
+        #        elif profile:
+        #            post["username"] = a.string
+        #            post["user_id"] = profile.group(1)
+        #    for ts in thread_stats.strings:
+        #        replies = check_replies.search(ts)
+        #        views = check_views.search(ts)
+        #        if replies:
+        #            post["replies"] = check_replies.search(ts).group(1)
+        #        elif views:
+        #            post["views"] = check_views.search(ts).group(1)
+        #    posts.append(post)
+
+        #return posts
 
     def get_board_index(self):
-        request = self.session.get(self.url + "index.php?wap2")
-        soup = BeautifulSoup(request.text)
-        check_board_id = re.compile(r'board\=(\d+)')
-        boards = {}
+        request = self.api.get_forum()
+        return request
 
-        # Current category
-        cat = "Uncategorized"
-        for a in soup.find_all("a"):
-            href = a.get("href")
-            if "?action=collapse" in href:
-                # Must be a new category
-                cat = a.string
-                boards[cat] = []
-            elif "?board=" in href:
-                board_id = check_board_id.search(href)
-                if board_id:
-                    board = {
-                        "name": a.string,
-                        "id": board_id.group(1)
-                    }
-                    boards[cat].append(board)
+        #request = self.session.get(self.url + "index.php?wap2")
+        #soup = BeautifulSoup(request.text)
+        #check_board_id = re.compile(r'board\=(\d+)')
+        #boards = {}
 
-        return boards
+        ## Current category
+        #cat = "Uncategorized"
+        #for a in soup.find_all("a"):
+        #    href = a.get("href")
+        #    if "?action=collapse" in href:
+        #        # Must be a new category
+        #        cat = a.string
+        #        boards[cat] = []
+        #    elif "?board=" in href:
+        #        board_id = check_board_id.search(href)
+        #        if board_id:
+        #            board = {
+        #                "name": a.string,
+        #                "id": board_id.group(1)
+        #            }
+        #            boards[cat].append(board)
+
+        #return boards
     
     def reply(self, board, topic, message):
 

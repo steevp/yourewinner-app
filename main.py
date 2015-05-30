@@ -89,26 +89,30 @@ Builder.load_string("""
                     ActionButton:
                         text: 'Btn7'
 
-        BoxLayout:
-            id: forum_posts
-            orientation: "vertical"
+        ScrollView:
+            GridLayout:
+                id: forum_posts
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
 
-        BoxLayout:
-            orientation: "horizontal"
-            size_hint_y: None
-            height: 32
-            TextInput:
-                multiline: False
-                hint_text: "Quick Reply"
-            Button:
-                text: "Post"
-                size_hint_x: None
-                width: self.texture_size[0] + 15
-                background_normal: "catbg.jpg"
+        #BoxLayout:
+        #    orientation: "horizontal"
+        #    size_hint_y: None
+        #    height: 32
+        #    TextInput:
+        #        multiline: False
+        #        hint_text: "Quick Reply"
+        #    Button:
+        #        text: "Post"
+        #        size_hint_x: None
+        #        width: self.texture_size[0] + 15
+        #        background_normal: "catbg.jpg"
 
 <BoardIndex>:
     boards: boards
     BoxLayout:
+        pos_hint: {'top': 1}
         id: boards
         canvas.before:
             Color:
@@ -116,13 +120,15 @@ Builder.load_string("""
             Rectangle:
                 pos: self.pos
                 size: self.size
-        orientation: "vertical"
 
 <BoardView>:
     topics: topics
-    BoxLayout:
-        id: topics
-        orientation: "vertical"
+    ScrollView:
+        GridLayout:
+            id: topics
+            cols: 1
+            size_hint_y: None
+            height: self.minimum_height
 
 <ListItemButton>:
     canvas.after:
@@ -136,47 +142,79 @@ Builder.load_string("""
     background_normal: ""
     background_down: ""
     size_hint_y: None
-    height: 40
+    height: '40dp'
 
-[PostContent@ListItemButton]:
-    msg_id: ctx.msg_id
+<PostContent>:
+    canvas.after:
+        Color:
+            rgba: 0.051, 0.035, 0.141, 1
+        Line:
+            rectangle: self.x, self.y, self.width, self.height
+    background_color: 0.129, 0.11, 0.271, 1
+    deselected_color: 0.129, 0.11, 0.271, 1
+    selected_color: 0.624, 0.365, 0.094, 1
+    background_normal: ""
+    background_down: ""
+    #msg_id: ctx.msg_id
     size_hint_y: None
-    height: image_username.height+avatar.height+10 if image_username.height+avatar.height > image_username.height+post_content.height else image_username.height+post_content.height+10
+    height: avatar.height + image_username.height + post_content.height
     AsyncImage:
         id: image_username
-        source: ctx.image_username
+        source: root.image_username
         allow_stretch: True
         keep_ratio: False
-        width: 100
-        height: 15
+        width: '100dp'
+        height: '15dp'
         x: self.parent.x + avatar.width + 5
         y: self.parent.y + self.parent.height - self.height
     CircleAvatar:
         id: avatar
-        source: ctx.avatar
+        source: root.avatar
         allow_stretch: True
         keep_ratio: False
-        width: 25
-        height: 25
+        width: '25dp'
+        height: '25dp'
         x: self.parent.x
         y: self.parent.y + self.parent.height - self.height
     Label:
         id: post_content
-        text: ctx.post_content
+        text: root.post_content
         size: self.texture_size
         text_size: self.parent.width - avatar.width - 10, None
         x: self.parent.x + avatar.width + 5
         y: self.parent.y + self.parent.height - self.height - image_username.height - 5
 
-[BoardIndexButton@ListItemButton]:
-    board_id: ctx.board_id
-    text: ctx.text
+<BoardIndexButton>:
+    canvas.after:
+        Color:
+            rgba: 0.051, 0.035, 0.141, 1
+        Line:
+            rectangle: self.x, self.y, self.width, self.height
+    background_color: 0.129, 0.11, 0.271, 1
+    deselected_color: 0.129, 0.11, 0.271, 1
+    selected_color: 0.624, 0.365, 0.094, 1
+    background_normal: ""
+    #background_down: ""
+    #board_id: ctx.board_id
+    text: root.board_name
     size_hint_y: None
-    height: 40
+    height: '40dp'
 
-[BoardContent@ListItemButton]:
-    text: ctx.text
-    topic_id: ctx.topic_id
+<BoardContent>:
+    canvas.after:
+        Color:
+            rgba: 0.051, 0.035, 0.141, 1
+        Line:
+            rectangle: self.x, self.y, self.width, self.height
+    background_color: 0.129, 0.11, 0.271, 1
+    deselected_color: 0.129, 0.11, 0.271, 1
+    selected_color: 0.624, 0.365, 0.094, 1
+    background_normal: ""
+    #background_down: ""
+    text: root.title
+    topic_id: root.topic_id
+    size_hint_y: None
+    height: '40dp'
 """)
 
 # Draws the avatars in an circle
@@ -222,24 +260,45 @@ class TopicView(Screen):
 
     @mainthread
     def add_posts(self, posts):
-        data = posts["posts"]
-        args_converter = lambda row_index, ctx: {
-            "image_username": ctx["image_username"],
-            "avatar": ctx["avatar"],
-            "post_content": ctx["content"],
-            "msg_id": ctx["msg_id"]
-        }
-        list_adapter = ListAdapter(data=data, args_converter=args_converter, template="PostContent")
-        list_adapter.bind(on_selection_change=self.callback)
-        list_view = ListView(adapter=list_adapter)
-        self.forum_posts.add_widget(list_view)
+        for p in posts["posts"][:10]:
+            pc = PostContent()
+            image_username = p.get("image_username")
+            avatar = p.get("icon_url")
+            post_content = str(p.get("post_content"))
+            if image_username:
+                pc.image_username = image_username
+            if avatar:
+                pc.avatar = avatar
+            if post_content:
+                pc.post_content = post_content
+            self.forum_posts.add_widget(pc)
+        #data = posts["posts"]
+        #args_converter = lambda row_index, ctx: {
+        #    "image_username": ctx["image_username"],
+        #    "avatar": ctx["avatar"],
+        #    "post_content": ctx["content"],
+        #    "msg_id": ctx["msg_id"]
+        #}
+        #list_adapter = ListAdapter(data=data, args_converter=args_converter, template="PostContent")
+        #list_adapter.bind(on_selection_change=self.callback)
+        #list_view = ListView(adapter=list_adapter)
+        #self.forum_posts.add_widget(list_view)
 
-    def callback(self, adapter):
-        if adapter.selection:
-            print adapter.selection[0].msg_id
+    #def callback(self, adapter):
+    #    if adapter.selection:
+    #        print adapter.selection[0].msg_id
+
+class PostContent(Button):
+    image_username = StringProperty()
+    avatar = StringProperty()
+    post_content = StringProperty()
+
+class BoardContent(Button):
+    title = StringProperty()
+    topic_id = StringProperty()
 
 class BoardIndex(Screen):
-    selected_board = StringProperty(None)
+    selected_board = StringProperty()
 
     def on_pre_enter(self):
         if not self.selected_board:
@@ -253,24 +312,61 @@ class BoardIndex(Screen):
     @mainthread
     def add_boards(self, boards):
         ac = Accordion(orientation="vertical")
-        for cat in boards.iterkeys():
-            item = AccordionItem(title=cat)
-            data = boards[cat]
-            args_converter = lambda row_index, ctx: {
-                "text": ctx["name"],
-                "board_id": ctx["id"]
-            }
-            list_adapter = ListAdapter(data=data, args_converter=args_converter, template="BoardIndexButton")
-            list_adapter.bind(on_selection_change=self.open_board)
-            list_view = ListView(adapter=list_adapter)
-            item.add_widget(list_view)
-            ac.add_widget(item)
-        self.boards.add_widget(ac)
+        for cat in boards:
+            if cat["sub_only"]:
+                # Category
+                item = AccordionItem(title=str(cat["forum_name"]))
+                bl = BoxLayout(orientation="vertical")
 
-    def open_board(self, adapter):
-        if adapter.selection:
-            self.selected_board = adapter.selection[0].board_id
+                for b in cat["child"]:
+                    bib = BoardIndexButton()
+                    bib.board_name = str(b["forum_name"])
+                    bib.board_id = b["forum_id"]
+                    bib.bind(on_release=self.open_board)
+                    bl.add_widget(bib)
+
+                item.add_widget(bl)
+                ac.add_widget(item)
+
+        self.boards.add_widget(ac)
+            
+
+        #for cat in boards.iterkeys():
+        #    item = AccordionItem(title=cat)
+        #    bl = BoxLayout(orientation="vertical")
+        #    for b in boards[cat]:
+        #        bib = BoardIndexButton()
+        #        board_name = b.get("name")
+        #        board_id = b.get("id")
+        #        if board_name:
+        #            bib.board_name = board_name
+        #        if board_id:
+        #            bib.board_id = board_id
+        #        bib.bind(on_release=self.open_board)
+        #        bl.add_widget(bib)
+        #    item.add_widget(bl)
+        #    ac.add_widget(item)
+        #    item = AccordionItem(title=cat)
+        #    data = boards[cat]
+        #    args_converter = lambda row_index, ctx: {
+        #        "text": ctx["name"],
+        #        "board_id": ctx["id"]
+        #    }
+        #    list_adapter = ListAdapter(data=data, args_converter=args_converter, template="BoardIndexButton")
+        #    list_adapter.bind(on_selection_change=self.open_board)
+        #    list_view = ListView(adapter=list_adapter)
+        #    item.add_widget(list_view)
+        #    ac.add_widget(item)
+        #self.boards.add_widget(ac)
+
+    def open_board(self, widget):
+        self.selected_board = widget.board_id
+        if self.selected_board:
             self.manager.current = "boardview"
+
+class BoardIndexButton(Button):
+    board_name = StringProperty()
+    board_id = StringProperty()
 
 class BoardView(Screen):
     selected_topic = StringProperty(None)
@@ -289,19 +385,30 @@ class BoardView(Screen):
 
     @mainthread
     def add_topics(self, topics):
-        data = topics
-        args_converter = lambda row_index, ctx: {
-            "text": ctx["title"],
-            "topic_id": ctx["topic_id"]
-        }
-        list_adapter = ListAdapter(data=data, args_converter=args_converter, template="BoardContent")
-        list_adapter.bind(on_selection_change=self.open_topic)
-        list_view = ListView(adapter=list_adapter)
-        self.topics.add_widget(list_view)
+        for t in topics:
+            bc = BoardContent()
+            title = str(t.get("topic_title"))
+            topic_id = t.get("topic_id")
+            if title:
+                bc.title = title
+            if topic_id:
+                bc.topic_id = topic_id
+            bc.bind(on_release=self.open_topic)
+            self.topics.add_widget(bc)
+        #data = topics
+        #args_converter = lambda row_index, ctx: {
+        #    "text": ctx["title"],
+        #    "topic_id": ctx["topic_id"]
+        #}
+        #list_adapter = ListAdapter(data=data, args_converter=args_converter, template="BoardContent")
+        #list_adapter.bind(on_selection_change=self.open_topic)
+        #list_view = ListView(adapter=list_adapter)
+        #self.topics.add_widget(list_view)
 
-    def open_topic(self, adapter):
-        if adapter.selection:
-            self.selected_topic = adapter.selection[0].topic_id
+    def open_topic(self, widget):
+        topic_id = widget.topic_id
+        if topic_id:
+            self.selected_topic = topic_id
             self.manager.current = "topicview"
 
 class YoureWinner(App):
