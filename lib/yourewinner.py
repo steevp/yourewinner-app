@@ -160,7 +160,7 @@ class Forum:
         return topic
 
     def get_board(self, board, page=1, children=False):
-        request = self.api.get_topic(board)
+        request = self.api.get_topic(board, 0, 25)
         return request.get("topics")
 
         #board = "{0}.{1}".format(board, str((page - 1) * 50))

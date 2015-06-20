@@ -57,6 +57,7 @@ Builder.load_string("""
         name: "topicview"
 
 <TopicView>:
+    name: "topicview"
     forum_posts: forum_posts
     BoxLayout:
         orientation: "vertical"
@@ -66,30 +67,31 @@ Builder.load_string("""
                 use_separator: True
                 background_image: "catbg.jpg"
                 ActionPrevious:
-                    title: 'Social/Off-Topic'
-                    on_release: app.root.current = "boardindex"
+                    title: "Social/Off-Topic - " + root.topic_title
+                    on_release: app.root.current = "boardview"
                 ActionOverflow:
-                ActionButton:
-                    text: 'Btn0'
-                    icon: 'atlas://data/images/defaulttheme/audio-volume-high'
-                ActionButton:
-                    text: 'Btn1'
-                ActionButton:
-                    text: 'Btn2'
-                ActionButton:
-                    text: 'Btn3'
-                ActionButton:
-                    text: 'Btn4'
-                ActionGroup:
-                    text: 'Group1'
-                    ActionButton:
-                        text: 'Btn5'
-                    ActionButton:
-                        text: 'Btn6'
-                    ActionButton:
-                        text: 'Btn7'
+                #ActionButton:
+                #    text: 'Btn0'
+                #    icon: 'atlas://data/images/defaulttheme/audio-volume-high'
+                #ActionButton:
+                #    text: 'Btn1'
+                #ActionButton:
+                #    text: 'Btn2'
+                #ActionButton:
+                #    text: 'Btn3'
+                #ActionButton:
+                #    text: 'Btn4'
+                #ActionGroup:
+                #    text: 'Group1'
+                #    ActionButton:
+                #        text: 'Btn5'
+                #    ActionButton:
+                #        text: 'Btn6'
+                #    ActionButton:
+                #        text: 'Btn7'
 
         ScrollView:
+            on_scroll_y: root.refresh(self.scroll_y)
             GridLayout:
                 id: forum_posts
                 cols: 1
@@ -110,39 +112,43 @@ Builder.load_string("""
         #        background_normal: "catbg.jpg"
 
 <BoardIndex>:
+    name: "boardindex"
     boards: boards
     BoxLayout:
-        pos_hint: {'top': 1}
-        id: boards
-        canvas.before:
-            Color:
-                rgba: 0.129, 0.11, 0.271, 1
-            Rectangle:
-                pos: self.pos
-                size: self.size
+        orientation: "vertical"
+        ScrollView:
+            GridLayout:
+                cols: 1
+                height: self.minimum_height
+                id: boards
+                #canvas.before:
+                #    Color:
+                #        rgba: 0.129, 0.11, 0.271, 1
+                #    Rectangle:
+                #        pos: self.pos
+                #        size: self.size
 
 <BoardView>:
+    name: "boardview"
     topics: topics
-    ScrollView:
-        GridLayout:
-            id: topics
-            cols: 1
-            size_hint_y: None
-            height: self.minimum_height
+    BoxLayout:
+        orientation: "vertical"
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                background_image: "catbg.jpg"
+                ActionPrevious:
+                    title: "Social/Off-Topic"
+                    on_release: app.root.current = "boardindex"
+                ActionOverflow:
 
-<ListItemButton>:
-    canvas.after:
-        Color:
-            rgba: 0.051, 0.035, 0.141, 1
-        Line:
-            rectangle: self.x, self.y, self.width, self.height
-    background_color: 0.129, 0.11, 0.271, 1
-    deselected_color: 0.129, 0.11, 0.271, 1
-    selected_color: 0.624, 0.365, 0.094, 1
-    background_normal: ""
-    background_down: ""
-    size_hint_y: None
-    height: '40dp'
+        ScrollView:
+            GridLayout:
+                id: topics
+                cols: 1
+                size_hint_y: None
+                height: self.minimum_height
 
 <PostContent>:
     canvas.after:
@@ -245,48 +251,35 @@ class RootWidget(ScreenManager):
     pass
 
 class TopicView(Screen):
-    loaded_topic = StringProperty(None)
+    loaded_topic = StringProperty()
+    topic_title = StringProperty()
 
     def on_pre_enter(self):
         if self.loaded_topic != self.manager.boardview.selected_topic:
             self.forum_posts.clear_widgets()
-            threading.Thread(target=self.get_recent).start()
+            threading.Thread(target=self.get_topic).start()
     
-    def get_recent(self, page=1):
-        self.loaded_topic = topic = self.manager.boardview.selected_topic
+    def get_topic(self, page=1):
+        self.loaded_topic =  topic = self.manager.boardview.selected_topic
         if topic:
             recent = forum.get_topic(topic, page=page)
             self.add_posts(recent)
 
     @mainthread
     def add_posts(self, posts):
-        for p in posts["posts"][:10]:
+        self.topic_title = str(posts["topic_title"])
+        for p in posts["posts"]:
             pc = PostContent()
-            image_username = p.get("image_username")
-            avatar = p.get("icon_url")
-            post_content = str(p.get("post_content"))
-            if image_username:
-                pc.image_username = image_username
-            if avatar:
-                pc.avatar = avatar
-            if post_content:
-                pc.post_content = post_content
+            pc.image_username = p.get("image_username")
+            #pc.avatar = p.get("icon_url")
+            pc.post_content = str(p.get("post_content"))
             self.forum_posts.add_widget(pc)
-        #data = posts["posts"]
-        #args_converter = lambda row_index, ctx: {
-        #    "image_username": ctx["image_username"],
-        #    "avatar": ctx["avatar"],
-        #    "post_content": ctx["content"],
-        #    "msg_id": ctx["msg_id"]
-        #}
-        #list_adapter = ListAdapter(data=data, args_converter=args_converter, template="PostContent")
-        #list_adapter.bind(on_selection_change=self.callback)
-        #list_view = ListView(adapter=list_adapter)
-        #self.forum_posts.add_widget(list_view)
 
-    #def callback(self, adapter):
-    #    if adapter.selection:
-    #        print adapter.selection[0].msg_id
+    def refresh(self, value):
+        if value == 1:
+            print "up"
+        elif value == 0:
+            print "down"
 
 class PostContent(Button):
     image_username = StringProperty()
@@ -315,7 +308,7 @@ class BoardIndex(Screen):
         for cat in boards:
             if cat["sub_only"]:
                 # Category
-                item = AccordionItem(title=str(cat["forum_name"]))
+                item = AccordionItem(background_normal="catbg.jpg", title=str(cat["forum_name"]))
                 bl = BoxLayout(orientation="vertical")
 
                 for b in cat["child"]:
@@ -329,35 +322,6 @@ class BoardIndex(Screen):
                 ac.add_widget(item)
 
         self.boards.add_widget(ac)
-            
-
-        #for cat in boards.iterkeys():
-        #    item = AccordionItem(title=cat)
-        #    bl = BoxLayout(orientation="vertical")
-        #    for b in boards[cat]:
-        #        bib = BoardIndexButton()
-        #        board_name = b.get("name")
-        #        board_id = b.get("id")
-        #        if board_name:
-        #            bib.board_name = board_name
-        #        if board_id:
-        #            bib.board_id = board_id
-        #        bib.bind(on_release=self.open_board)
-        #        bl.add_widget(bib)
-        #    item.add_widget(bl)
-        #    ac.add_widget(item)
-        #    item = AccordionItem(title=cat)
-        #    data = boards[cat]
-        #    args_converter = lambda row_index, ctx: {
-        #        "text": ctx["name"],
-        #        "board_id": ctx["id"]
-        #    }
-        #    list_adapter = ListAdapter(data=data, args_converter=args_converter, template="BoardIndexButton")
-        #    list_adapter.bind(on_selection_change=self.open_board)
-        #    list_view = ListView(adapter=list_adapter)
-        #    item.add_widget(list_view)
-        #    ac.add_widget(item)
-        #self.boards.add_widget(ac)
 
     def open_board(self, widget):
         self.selected_board = widget.board_id
@@ -369,8 +333,8 @@ class BoardIndexButton(Button):
     board_id = StringProperty()
 
 class BoardView(Screen):
-    selected_topic = StringProperty(None)
-    loaded_board = StringProperty(None)
+    selected_topic = StringProperty()
+    loaded_board = StringProperty()
 
     def on_pre_enter(self):
         if self.loaded_board != self.manager.boardindex.selected_board:
@@ -395,15 +359,6 @@ class BoardView(Screen):
                 bc.topic_id = topic_id
             bc.bind(on_release=self.open_topic)
             self.topics.add_widget(bc)
-        #data = topics
-        #args_converter = lambda row_index, ctx: {
-        #    "text": ctx["title"],
-        #    "topic_id": ctx["topic_id"]
-        #}
-        #list_adapter = ListAdapter(data=data, args_converter=args_converter, template="BoardContent")
-        #list_adapter.bind(on_selection_change=self.open_topic)
-        #list_view = ListView(adapter=list_adapter)
-        #self.topics.add_widget(list_view)
 
     def open_topic(self, widget):
         topic_id = widget.topic_id
