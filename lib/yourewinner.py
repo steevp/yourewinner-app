@@ -100,9 +100,12 @@ class Forum:
     def get_unread(self, page=None):
         pass
 
-    def get_topic(self, topic, message=None, page=None):
+    def get_topic(self, topic, message=None, page=1):
 
-        request = self.api.get_thread(topic, 0, 9)
+        start = page * 10 - 10
+        end = page * 10 - 1
+
+        request = self.api.get_thread(topic, start, end)
         return request
         
         if page:

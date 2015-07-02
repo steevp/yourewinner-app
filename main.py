@@ -15,6 +15,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
+import math
 
 from lib.yourewinner import Forum
 
@@ -29,7 +30,7 @@ from kivy.adapters.listadapter import ListAdapter
 from kivy.uix.listview import ListView, SelectableView, ListItemButton
 from kivy.uix.accordion import Accordion, AccordionItem
 from kivy.uix.screenmanager import ScreenManager, Screen
-from kivy.properties import StringProperty
+from kivy.properties import StringProperty, NumericProperty
 from kivy.clock import mainthread
 from kivy.graphics.vertex_instructions import Ellipse
 
@@ -70,11 +71,12 @@ Builder.load_string("""
                     title: "Social/Off-Topic - " + root.topic_title
                     on_release: app.root.current = "boardview"
                 ActionOverflow:
-                #ActionButton:
-                #    text: 'Btn0'
-                #    icon: 'atlas://data/images/defaulttheme/audio-volume-high'
-                #ActionButton:
-                #    text: 'Btn1'
+                ActionButton:
+                    text: str(root.current_page)
+                    on_release: root.previous_page()
+                ActionButton:
+                    text: str(root.last_page)
+                    on_release: root.next_page()
                 #ActionButton:
                 #    text: 'Btn2'
                 #ActionButton:
@@ -253,6 +255,8 @@ class RootWidget(ScreenManager):
 class TopicView(Screen):
     loaded_topic = StringProperty()
     topic_title = StringProperty()
+    current_page = NumericProperty()
+    last_page = NumericProperty()
 
     def on_pre_enter(self):
         if self.loaded_topic != self.manager.boardview.selected_topic:
@@ -260,13 +264,15 @@ class TopicView(Screen):
             threading.Thread(target=self.get_topic).start()
     
     def get_topic(self, page=1):
-        self.loaded_topic =  topic = self.manager.boardview.selected_topic
+        self.current_page = page
+        self.loaded_topic = topic = self.manager.boardview.selected_topic
         if topic:
             recent = forum.get_topic(topic, page=page)
             self.add_posts(recent)
 
     @mainthread
     def add_posts(self, posts):
+        self.last_page = int(math.ceil(posts["total_post_num"] / 10.0))
         self.topic_title = str(posts["topic_title"])
         for p in posts["posts"]:
             pc = PostContent()
@@ -275,11 +281,21 @@ class TopicView(Screen):
             pc.post_content = str(p.get("post_content"))
             self.forum_posts.add_widget(pc)
 
+    def next_page(self):
+        self.forum_posts.clear_widgets()
+        page = self.current_page + 1
+        self.get_topic(page=page)
+
+    def previous_page(self):
+        self.forum_posts.clear_widgets()
+        page = self.current_page - 1
+        self.get_topic(page=page)
+
     def refresh(self, value):
         if value == 1:
-            print "up"
+            self.previous_page()
         elif value == 0:
-            print "down"
+            self.next_page()
 
 class PostContent(Button):
     image_username = StringProperty()
