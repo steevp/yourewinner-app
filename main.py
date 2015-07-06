@@ -142,7 +142,7 @@ Builder.load_string("""
                 size_hint_y: None
                 height: self.minimum_height
 
-<PostContent>
+<PostContent>:
     canvas.after:
         Color:
             rgba: 0.051, 0.035, 0.141, 1
