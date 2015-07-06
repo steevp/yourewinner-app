@@ -1,3 +1,4 @@
+#!/usr/bin/env python2 
 #    yourewinner.com forum app
 #    Copyright (C) 2015 steev
 #    
@@ -16,23 +17,25 @@
 
 import re
 import math
+import os
 
 from lib.yourewinner import Forum
+
+os.environ["KIVY_IMAGE"] = "pil"
 
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.carousel import Carousel
 from kivy.uix.image import AsyncImage
 from kivy.uix.label import Label
 from kivy.uix.button import Button
-from kivy.adapters.listadapter import ListAdapter
-from kivy.uix.listview import ListView, SelectableView, ListItemButton
 from kivy.uix.accordion import Accordion, AccordionItem
 from kivy.uix.screenmanager import ScreenManager, Screen
+from kivy.uix.popup import Popup
+from kivy.uix.listview import ListView, ListItemButton
+from kivy.adapters.listadapter import ListAdapter
 from kivy.properties import StringProperty, NumericProperty
 from kivy.clock import mainthread
-from kivy.graphics.vertex_instructions import Ellipse
 
 import threading
 
@@ -93,25 +96,12 @@ Builder.load_string("""
                 #        text: 'Btn7'
 
         ScrollView:
-            on_scroll_y: root.refresh(self.scroll_y)
+            #on_scroll_y: root.refresh(self.scroll_y)
             GridLayout:
                 id: forum_posts
                 cols: 1
                 size_hint_y: None
                 height: self.minimum_height
-
-        #BoxLayout:
-        #    orientation: "horizontal"
-        #    size_hint_y: None
-        #    height: 32
-        #    TextInput:
-        #        multiline: False
-        #        hint_text: "Quick Reply"
-        #    Button:
-        #        text: "Post"
-        #        size_hint_x: None
-        #        width: self.texture_size[0] + 15
-        #        background_normal: "catbg.jpg"
 
 <BoardIndex>:
     name: "boardindex"
@@ -152,7 +142,7 @@ Builder.load_string("""
                 size_hint_y: None
                 height: self.minimum_height
 
-<PostContent>:
+<PostContent>
     canvas.after:
         Color:
             rgba: 0.051, 0.035, 0.141, 1
@@ -163,34 +153,45 @@ Builder.load_string("""
     selected_color: 0.624, 0.365, 0.094, 1
     background_normal: ""
     background_down: ""
+    on_press: self.select() if not self.is_selected else self.deselect()
     #msg_id: ctx.msg_id
     size_hint_y: None
-    height: avatar.height + image_username.height + post_content.height
+    height: dp(25) + image_username.height + post_content.height
     AsyncImage:
         id: image_username
         source: root.image_username
+        #source: ctx.image_username
         allow_stretch: True
         keep_ratio: False
         width: '100dp'
         height: '15dp'
-        x: self.parent.x + avatar.width + 5
+        x: self.parent.x + dp(25) + dp(5)
         y: self.parent.y + self.parent.height - self.height
-    CircleAvatar:
+    AsyncImage:
+        canvas:
+            Color:
+                rgb: (1, 1, 1)
+            Ellipse:
+                texture: self.texture
+                size: dp(25), dp(25)
+                pos: self.pos
         id: avatar
         source: root.avatar
+        #source: ctx.avatar
         allow_stretch: True
         keep_ratio: False
-        width: '25dp'
-        height: '25dp'
+        width: 0
+        height: 0
         x: self.parent.x
-        y: self.parent.y + self.parent.height - self.height
+        y: self.parent.y + self.parent.height - dp(25)
     Label:
         id: post_content
         text: root.post_content
+        #text: ctx.post_content
         size: self.texture_size
-        text_size: self.parent.width - avatar.width - 10, None
-        x: self.parent.x + avatar.width + 5
-        y: self.parent.y + self.parent.height - self.height - image_username.height - 5
+        text_size: self.parent.width - dp(25) - dp(10), None
+        x: self.parent.x + dp(25) + dp(5)
+        y: self.parent.y + self.parent.height - self.height - image_username.height - dp(5)
 
 <BoardIndexButton>:
     canvas.after:
@@ -223,31 +224,26 @@ Builder.load_string("""
     topic_id: root.topic_id
     size_hint_y: None
     height: '40dp'
+
+<ReplyPopup>:
+    size_hint: (.8, .8)
+    BoxLayout:
+        orientation: "vertical"
+        TextInput:
+            id: message
+            size_hint_y: .8
+            multiline: True
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: .2
+            Button:
+                text: "Reply"
+                on_release: app.root.topicview.reply(message.text); root.dismiss()
+            Button:
+                text: "Close"
+                on_release: root.dismiss()
+
 """)
-
-# Draws the avatars in an circle
-class CircleAvatar(AsyncImage):
-    def __init__(self, **kwargs):
-        self.circle = None
-        super(CircleAvatar, self).__init__(**kwargs)
-
-    def _on_source_load(self, value):
-        image = self._coreimage.image
-        if image:
-            with self.canvas.after:
-                self.circle = Ellipse(texture=image.texture, pos=self.pos, size=self.size)
-    
-    def _on_tex_change(self, *largs):
-        if self._coreimage and self.circle:
-            self.circle.texture = self._coreimage.texture
-
-    def on_pos(self, obj, new_pos):
-        if self.circle:
-            self.circle.pos = new_pos
-
-    def on_size(self, obj, new_size):
-        if self.circle:
-            self.circle.size = new_size
 
 class RootWidget(ScreenManager):
     pass
@@ -277,30 +273,57 @@ class TopicView(Screen):
         for p in posts["posts"]:
             pc = PostContent()
             pc.image_username = p.get("image_username")
-            #pc.avatar = p.get("icon_url")
+            pc.avatar = p.get("icon_url")
             pc.post_content = str(p.get("post_content"))
+            #pc.bind(on_release=self.popup)
             self.forum_posts.add_widget(pc)
+        #list_item_args_converter = lambda row_index, ctx: {
+        #    "image_username": ctx["image_username"],
+        #    "avatar": ctx["icon_url"],
+        #    "post_content": str(ctx["post_content"])
+        #}
+        #list_adapter = ListAdapter(data=posts["posts"], args_converter=list_item_args_converter, template="PostContent")
+        #list_view = ListView(adapter=list_adapter)
+        #self.forum_posts.add_widget(list_view)
 
     def next_page(self):
-        self.forum_posts.clear_widgets()
-        page = self.current_page + 1
-        self.get_topic(page=page)
+        if self.current_page < self.last_page:
+            self.forum_posts.clear_widgets()
+            page = self.current_page + 1
+            self.get_topic(page=page)
 
     def previous_page(self):
-        self.forum_posts.clear_widgets()
-        page = self.current_page - 1
-        self.get_topic(page=page)
+        if self.current_page > 1:
+            self.forum_posts.clear_widgets()
+            page = self.current_page - 1
+            self.get_topic(page=page)
 
-    def refresh(self, value):
-        if value == 1:
-            self.previous_page()
-        elif value == 0:
-            self.next_page()
+    def popup(self, *args):
+        popup = ReplyPopup()
+        popup.open()
 
-class PostContent(Button):
+    def reply(self, message):
+        if not message:
+            return
+        board = self.manager.boardview.loaded_board
+        topic = self.loaded_topic
+        subject = self.topic_title
+        forum.reply(board, topic, subject, message)
+        self.get_topic(page=self.last_page)
+
+
+class PostContent(ListItemButton):
     image_username = StringProperty()
     avatar = StringProperty()
     post_content = StringProperty()
+
+    def select(self, *args):
+        super(PostContent, self).select(*args)
+        self.is_selected = True
+
+    def deselect(self, *args):
+        super(PostContent, self).deselect(*args)
+        self.is_selected = False
 
 class BoardContent(Button):
     title = StringProperty()
@@ -381,6 +404,9 @@ class BoardView(Screen):
         if topic_id:
             self.selected_topic = topic_id
             self.manager.current = "topicview"
+
+class ReplyPopup(Popup):
+    pass
 
 class YoureWinner(App):
     def build(self):

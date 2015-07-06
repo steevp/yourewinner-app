@@ -235,11 +235,17 @@ class Forum:
 
         #return boards
     
-    def reply(self, board, topic, message):
+    def reply(self, board, topic, subject, message):
 
         if not self.logged_in:
             print "You must be logged in to do that!"
             return False
+
+        subject = xmlrpclib.Binary(subject)
+        message = xmlrpclib.Binary(message)
+
+        self.api.reply_post(board, topic, subject, message)
+        return
 
         request = self.session.get(self.url + "index.php?action=post;topic=" + topic + ".0;wap2")
 
