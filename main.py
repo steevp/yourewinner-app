@@ -414,6 +414,13 @@ class YoureWinner(App):
     def build(self):
         return RootWidget()
 
+    def on_pause(self):
+        # save data here
+        return True
+
+    def on_resume(self):
+        pass
+
 if __name__ == "__main__":
     forum = Forum()
     YoureWinner().run()
