@@ -87,7 +87,7 @@ class Forum:
         request = self.api.get_thread(topic, start, end)
         return request
 
-    def get_board(self, board, page=1, page_size=10, children=False):
+    def get_board(self, board, page=1, page_size=25, children=False):
 
         start = page * page_size - page_size
         end = page * page_size - 1

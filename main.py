@@ -16,9 +16,8 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-import math
 import os
-
+from math import ceil
 from lib.yourewinner import Forum
 
 os.environ["KIVY_IMAGE"] = "pil"
@@ -34,7 +33,7 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.popup import Popup
 from kivy.uix.listview import ListView, ListItemButton
 from kivy.adapters.listadapter import ListAdapter
-from kivy.properties import StringProperty, NumericProperty
+from kivy.properties import StringProperty, NumericProperty, BooleanProperty
 from kivy.clock import mainthread
 
 import threading
@@ -146,7 +145,7 @@ Builder.load_string("""
     on_press: self.select() if not self.is_selected else self.deselect()
     #msg_id: ctx.msg_id
     size_hint_y: None
-    height: dp(25) + image_username.height + post_content.height
+    height: dp(30) + image_username.height + post_content.height
     AsyncImage:
         id: image_username
         source: root.image_username
@@ -155,7 +154,7 @@ Builder.load_string("""
         keep_ratio: False
         width: '100dp'
         height: '15dp'
-        x: self.parent.x + dp(25) + dp(5)
+        x: self.parent.x + dp(30) + dp(5)
         y: self.parent.y + self.parent.height - self.height
     AsyncImage:
         canvas:
@@ -163,8 +162,13 @@ Builder.load_string("""
                 rgb: (1, 1, 1)
             Ellipse:
                 texture: self.texture
-                size: dp(25), dp(25)
+                size: dp(30), dp(30)
                 pos: self.pos
+            Color:
+                rgb: (0, 1, 0)
+            Ellipse:
+                size: (dp(5), dp(5)) if root.is_online else (0, 0)
+                pos: self.x + dp(23), self.y + dp(3)
         id: avatar
         source: root.avatar
         #source: ctx.avatar
@@ -173,14 +177,15 @@ Builder.load_string("""
         width: 0
         height: 0
         x: self.parent.x
-        y: self.parent.y + self.parent.height - dp(25)
+        y: self.parent.y + self.parent.height - dp(30)
     Label:
         id: post_content
         text: root.post_content
+        markup: True
         #text: ctx.post_content
         size: self.texture_size
-        text_size: self.parent.width - dp(25) - dp(10), None
-        x: self.parent.x + dp(25) + dp(5)
+        text_size: self.parent.width - dp(30) - dp(10), None
+        x: self.parent.x + dp(30) + dp(5)
         y: self.parent.y + self.parent.height - self.height - image_username.height - dp(5)
 
 <BoardIndexButton>:
@@ -258,14 +263,14 @@ class TopicView(Screen):
 
     @mainthread
     def add_posts(self, posts):
-        self.last_page = int(math.ceil(posts["total_post_num"] / 10.0))
+        self.last_page = int(ceil(posts["total_post_num"] / 10.0))
         self.topic_title = str(posts["topic_title"])
         for p in posts["posts"]:
             pc = PostContent()
-            pc.image_username = p.get("image_username")
-            pc.avatar = p.get("icon_url")
-            pc.post_content = str(p.get("post_content"))
-            #pc.bind(on_release=self.popup)
+            pc.image_username = p["image_username"]
+            pc.avatar = p["icon_url"]
+            pc.post_content = str(p["post_content"])
+            pc.is_online = p["is_online"]
             self.forum_posts.add_widget(pc)
         #list_item_args_converter = lambda row_index, ctx: {
         #    "image_username": ctx["image_username"],
@@ -306,6 +311,7 @@ class PostContent(ListItemButton):
     image_username = StringProperty()
     avatar = StringProperty()
     post_content = StringProperty()
+    is_online = BooleanProperty(False)
 
     def select(self, *args):
         self.deselect_all()
