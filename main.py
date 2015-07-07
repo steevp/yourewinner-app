@@ -108,17 +108,7 @@ Builder.load_string("""
     boards: boards
     BoxLayout:
         orientation: "vertical"
-        ScrollView:
-            GridLayout:
-                cols: 1
-                height: self.minimum_height
-                id: boards
-                #canvas.before:
-                #    Color:
-                #        rgba: 0.129, 0.11, 0.271, 1
-                #    Rectangle:
-                #        pos: self.pos
-                #        size: self.size
+        id: boards
 
 <BoardView>:
     name: "boardview"
@@ -318,12 +308,18 @@ class PostContent(ListItemButton):
     post_content = StringProperty()
 
     def select(self, *args):
+        self.deselect_all()
         super(PostContent, self).select(*args)
         self.is_selected = True
 
     def deselect(self, *args):
         super(PostContent, self).deselect(*args)
         self.is_selected = False
+
+    def deselect_all(self, *args):
+        for c in self.parent.children:
+            if c.is_selected:
+                c.deselect()
 
 class BoardContent(Button):
     title = StringProperty()
