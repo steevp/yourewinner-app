@@ -462,9 +462,9 @@ class YoureWinner(App):
         if self.logged_in:
             return
 
-        username = self.config.get("login", "username")
-        password = self.config.get("login", "password")
-        
+        username = str(self.config.get("login", "username"))
+        password = str(self.config.get("login", "password"))
+
         if username and password:
             self.logged_in = forum.login(username, password)
             print self.logged_in
