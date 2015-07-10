@@ -27,6 +27,8 @@ os.environ["KIVY_IMAGE"] = "pil"
 from kivy.app import App
 from kivy.lang import Builder
 from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.scrollview import ScrollView
 from kivy.uix.image import AsyncImage
 from kivy.uix.label import Label
 from kivy.uix.button import Button
@@ -368,16 +370,20 @@ class BoardIndex(Screen):
             if cat["sub_only"]:
                 # Category
                 item = AccordionItem(background_normal="catbg.jpg", title=str(cat["forum_name"]))
-                bl = BoxLayout(orientation="vertical")
+                container = GridLayout(cols=1, size_hint_y=None)
+                container.bind(minimum_height=container.setter("height"))
 
                 for b in cat["child"]:
                     bib = BoardIndexButton()
                     bib.board_name = str(b["forum_name"])
                     bib.board_id = b["forum_id"]
                     bib.bind(on_release=self.open_board)
-                    bl.add_widget(bib)
+                    container.add_widget(bib)
 
-                item.add_widget(bl)
+                scrollview = ScrollView()
+                scrollview.add_widget(container)
+
+                item.add_widget(scrollview)
                 ac.add_widget(item)
 
         self.boards.add_widget(ac)
