@@ -18,7 +18,9 @@
 import re
 import os
 from math import ceil
+
 from lib.yourewinner import Forum
+from lib.settingsjson import settings_json
 
 os.environ["KIVY_IMAGE"] = "pil"
 
@@ -32,6 +34,7 @@ from kivy.uix.accordion import Accordion, AccordionItem
 from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.popup import Popup
 from kivy.uix.listview import ListView, ListItemButton
+from kivy.uix.settings import SettingsWithSidebar
 from kivy.adapters.listadapter import ListAdapter
 from kivy.properties import StringProperty, NumericProperty, BooleanProperty
 from kivy.clock import mainthread
@@ -107,7 +110,20 @@ Builder.load_string("""
     boards: boards
     BoxLayout:
         orientation: "vertical"
-        id: boards
+        ActionBar:
+            pos_hint: {'top':1}
+            ActionView:
+                use_separator: True
+                background_image: "catbg.jpg"
+                ActionPrevious:
+                    title: "Social/Off-Topic - "
+                ActionOverflow:
+                ActionButton:
+                    text: "Settings"
+                    on_release: app.open_settings()
+        BoxLayout:
+            orientation: "vertical"
+            id: boards
 
 <BoardView>:
     name: "boardview"
@@ -142,7 +158,8 @@ Builder.load_string("""
     selected_color: 0.624, 0.365, 0.094, 1
     background_normal: ""
     background_down: ""
-    on_press: self.select() if not self.is_selected else self.deselect()
+    #on_press: self.select() if not self.is_selected else self.deselect()
+    on_press: app.root.topicview.popup()
     #msg_id: ctx.msg_id
     size_hint_y: None
     height: dp(30) + image_username.height + post_content.height
@@ -251,7 +268,6 @@ class TopicView(Screen):
 
     def on_pre_enter(self):
         if self.loaded_topic != self.manager.boardview.selected_topic:
-            self.forum_posts.clear_widgets()
             threading.Thread(target=self.get_topic).start()
     
     def get_topic(self, page=1):
@@ -265,6 +281,7 @@ class TopicView(Screen):
     def add_posts(self, posts):
         self.last_page = int(ceil(posts["total_post_num"] / 10.0))
         self.topic_title = str(posts["topic_title"])
+        self.forum_posts.clear_widgets()
         for p in posts["posts"]:
             pc = PostContent()
             pc.image_username = p["image_username"]
@@ -294,8 +311,9 @@ class TopicView(Screen):
             self.get_topic(page=page)
 
     def popup(self, *args):
-        popup = ReplyPopup()
-        popup.open()
+        if forum.logged_in:
+            popup = ReplyPopup()
+            popup.open()
 
     def reply(self, message):
         if not message:
@@ -411,7 +429,13 @@ class ReplyPopup(Popup):
     pass
 
 class YoureWinner(App):
+    logged_in = BooleanProperty(False)
+
     def build(self):
+        self.use_kivy_settings = False
+
+        self.do_login()
+
         return RootWidget()
 
     def on_pause(self):
@@ -420,6 +444,30 @@ class YoureWinner(App):
 
     def on_resume(self):
         pass
+
+    def build_config(self, config):
+        config.setdefaults("login", {
+            "username": "",
+            "password": ""})
+
+    def build_settings(self, settings):
+        settings.add_json_panel("Settings",
+                                self.config,
+                                data=settings_json)
+
+    def on_config_change(self, config, section, key, value):
+        self.do_login()
+
+    def do_login(self):
+        if self.logged_in:
+            return
+
+        username = self.config.get("login", "username")
+        password = self.config.get("login", "password")
+        
+        if username and password:
+            self.logged_in = forum.login(username, password)
+            print self.logged_in
 
 if __name__ == "__main__":
     forum = Forum()
