@@ -17,6 +17,7 @@
 
 import re
 import os
+import json
 from math import ceil
 
 from lib.yourewinner import Forum
@@ -37,6 +38,7 @@ from kivy.uix.screenmanager import ScreenManager, Screen
 from kivy.uix.popup import Popup
 from kivy.uix.listview import ListView, ListItemButton
 from kivy.uix.settings import SettingsWithSidebar
+from kivy.uix.actionbar import ActionBar
 from kivy.adapters.listadapter import ListAdapter
 from kivy.properties import StringProperty, NumericProperty, BooleanProperty
 from kivy.clock import mainthread
@@ -73,17 +75,10 @@ Builder.load_string("""
             pos_hint: {'top':1}
             ActionView:
                 use_separator: True
-                background_image: "catbg.jpg"
                 ActionPrevious:
                     title: "Social/Off-Topic - " + root.topic_title
                     on_release: app.root.current = "boardview"
                 ActionOverflow:
-                ActionButton:
-                    text: str(root.current_page)
-                    on_release: root.previous_page()
-                ActionButton:
-                    text: str(root.last_page)
-                    on_release: root.next_page()
                 #ActionButton:
                 #    text: 'Btn2'
                 #ActionButton:
@@ -107,6 +102,26 @@ Builder.load_string("""
                 size_hint_y: None
                 height: self.minimum_height
 
+        BoxLayout:
+            orientation: "horizontal"
+            size_hint_y: None
+            height: "40dp"
+            Button:
+                text: "|<"
+                on_release: root.get_topic(page=1)
+            Button:
+                text: "<"
+                on_release: root.previous_page()
+            Button:
+                text: str(root.current_page) + "/" + str(root.last_page)
+            Button:
+                text: ">"
+                on_release: root.next_page()
+            Button:
+                text: ">|"
+                on_release: root.get_topic(page=root.last_page)
+
+
 <BoardIndex>:
     name: "boardindex"
     boards: boards
@@ -116,13 +131,12 @@ Builder.load_string("""
             pos_hint: {'top':1}
             ActionView:
                 use_separator: True
-                background_image: "catbg.jpg"
                 ActionPrevious:
                     title: "Social/Off-Topic - "
                 ActionOverflow:
-                ActionButton:
-                    text: "Settings"
-                    on_release: app.open_settings()
+                    ActionButton:
+                        text: "Settings"
+                        on_release: app.open_settings()
         BoxLayout:
             orientation: "vertical"
             id: boards
@@ -136,11 +150,13 @@ Builder.load_string("""
             pos_hint: {'top':1}
             ActionView:
                 use_separator: True
-                background_image: "catbg.jpg"
                 ActionPrevious:
                     title: "Social/Off-Topic"
                     on_release: app.root.current = "boardindex"
                 ActionOverflow:
+                    ActionButton:
+                        text: "Settings"
+                        on_release: app.open_settings()
 
         ScrollView:
             GridLayout:
@@ -155,9 +171,9 @@ Builder.load_string("""
             rgba: 0.051, 0.035, 0.141, 1
         Line:
             rectangle: self.x, self.y, self.width, self.height
-    background_color: 0.129, 0.11, 0.271, 1
-    deselected_color: 0.129, 0.11, 0.271, 1
-    selected_color: 0.624, 0.365, 0.094, 1
+    #background_color: 0.129, 0.11, 0.271, 1
+    #deselected_color: 0.129, 0.11, 0.271, 1
+    #selected_color: 0.624, 0.365, 0.094, 1
     background_normal: ""
     background_down: ""
     #on_press: self.select() if not self.is_selected else self.deselect()
@@ -213,9 +229,9 @@ Builder.load_string("""
             rgba: 0.051, 0.035, 0.141, 1
         Line:
             rectangle: self.x, self.y, self.width, self.height
-    background_color: 0.129, 0.11, 0.271, 1
-    deselected_color: 0.129, 0.11, 0.271, 1
-    selected_color: 0.624, 0.365, 0.094, 1
+    #background_color: 0.129, 0.11, 0.271, 1
+    #deselected_color: 0.129, 0.11, 0.271, 1
+    #selected_color: 0.624, 0.365, 0.094, 1
     background_normal: ""
     #background_down: ""
     #board_id: ctx.board_id
@@ -229,9 +245,9 @@ Builder.load_string("""
             rgba: 0.051, 0.035, 0.141, 1
         Line:
             rectangle: self.x, self.y, self.width, self.height
-    background_color: 0.129, 0.11, 0.271, 1
-    deselected_color: 0.129, 0.11, 0.271, 1
-    selected_color: 0.624, 0.365, 0.094, 1
+    #background_color: 0.129, 0.11, 0.271, 1
+    #deselected_color: 0.129, 0.11, 0.271, 1
+    #selected_color: 0.624, 0.365, 0.094, 1
     background_normal: ""
     #background_down: ""
     text: root.title
@@ -250,6 +266,7 @@ Builder.load_string("""
         BoxLayout:
             orientation: "horizontal"
             size_hint_y: .2
+            spacing: "5dp"
             Button:
                 text: "Reply"
                 on_release: app.root.topicview.reply(message.text); root.dismiss()
@@ -439,7 +456,7 @@ class YoureWinner(App):
 
     def build(self):
         self.use_kivy_settings = False
-
+        self.load_theme()
         self.do_login()
 
         return RootWidget()
@@ -455,6 +472,8 @@ class YoureWinner(App):
         config.setdefaults("login", {
             "username": "",
             "password": ""})
+        config.setdefaults("appearance", {
+            "theme": "default"})
 
     def build_settings(self, settings):
         settings.add_json_panel("Settings",
@@ -474,6 +493,23 @@ class YoureWinner(App):
         if username and password:
             self.logged_in = forum.login(username, password)
             print self.logged_in
+
+    def load_theme(self):
+        theme = self.config.get("appearance", "theme")
+        with open(os.path.join("themes", theme, "style.json"), "r") as f:
+            style = json.load(f)
+        ActionBar.background_image.defaultvalue = style["button_background"]
+        Button.background_normal.defaultvalue = style["button_background"]
+        Label.color.defaultvalue = style["text_color"]
+        PostContent.background_color = style["background_color"]
+        PostContent.deselected_color = style["background_color"]
+        PostContent.selected_color = style["selected_color"]
+        BoardIndexButton.background_color = style["background_color"]
+        BoardIndexButton.deselected_color = style["background_color"]
+        BoardIndexButton.selected_color = style["selected_color"]
+        BoardContent.background_color = style["background_color"]
+        BoardContent.deselected_color = style["background_color"]
+        BoardContent.selected_color = style["selected_color"]
 
 if __name__ == "__main__":
     forum = Forum()

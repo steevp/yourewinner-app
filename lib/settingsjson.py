@@ -12,5 +12,13 @@ settings_json = json.dumps([
      "title": "Password",
      "desc": "Enter your password",
      "section": "login",
-     "key": "password"}])
+     "key": "password"},
+    {"type": "title",
+     "title": "Appearance"},
+    {"type": "options",
+     "title": "Theme",
+     "desc": "Select a theme (Requires restart)",
+     "section": "appearance",
+     "options": ["default", "gay", "weed"],
+     "key": "theme"}])
 
