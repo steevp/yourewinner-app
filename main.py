@@ -18,6 +18,7 @@
 import re
 import os
 import json
+import datetime
 from math import ceil
 
 from lib.yourewinner import Forum
@@ -222,6 +223,11 @@ Builder.load_string("""
         text_size: self.parent.width - dp(30) - dp(10), None
         x: self.parent.x + dp(30) + dp(5)
         y: self.parent.y + self.parent.height - self.height - image_username.height - dp(5)
+    Label:
+        text: root.post_time
+        size: self.texture_size
+        x: self.parent.x + self.parent.width - self.width
+        y: self.parent.y + self.parent.height - self.height
 
 <BoardIndexButton>:
     canvas.after:
@@ -307,6 +313,8 @@ class TopicView(Screen):
             pc.avatar = p["icon_url"]
             pc.post_content = str(p["post_content"])
             pc.is_online = p["is_online"]
+            post_time = datetime.datetime.strptime(p["post_time"].value, "%Y%m%dT%H:%M:%S+00:00")
+            pc.post_time =  post_time.strftime("%m-%d-%Y, %H:%M:%S")
             self.forum_posts.add_widget(pc)
         #list_item_args_converter = lambda row_index, ctx: {
         #    "image_username": ctx["image_username"],
@@ -349,6 +357,7 @@ class PostContent(ListItemButton):
     avatar = StringProperty()
     post_content = StringProperty()
     is_online = BooleanProperty(False)
+    post_time = StringProperty()
 
     def select(self, *args):
         self.deselect_all()
